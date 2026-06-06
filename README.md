@@ -47,7 +47,7 @@ NAME OF FOLDER report.md
 Example:
 
 ```text
-VAELINYA report.md
+Cheese Recipies report.md
 ```
 
 ## Why it exists
