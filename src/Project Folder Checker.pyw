@@ -53,6 +53,52 @@ def file_size_mb(path: Path) -> float:
     return path.stat().st_size / (1024 * 1024)
 
 
+def build_quick_judgement(
+    files: list[Path],
+    folders: list[Path],
+    empty_folders: list[Path],
+    large_files: list[Path],
+    possible_old_drafts: list[Path],
+    duplicate_name_groups: dict[str, list[Path]],
+) -> list[str]:
+    file_count = len(files)
+    folder_count = len(folders)
+    empty_folder_count = len(empty_folders)
+    large_file_count = len(large_files)
+    old_draft_count = len(possible_old_drafts)
+    duplicate_group_count = len(duplicate_name_groups)
+
+    findings = []
+
+    if file_count == 0:
+        findings.append("No files were found in this folder after ignored folders were skipped.")
+        return findings
+
+    if file_count >= 1000 or folder_count >= 250:
+        findings.append("Large folder. Treat this report as a map, not a clean-up instruction.")
+    elif not large_files and not possible_old_drafts and not duplicate_name_groups and not empty_folders:
+        findings.append("No obvious clean-up problems found.")
+    else:
+        findings.append("Review useful. The scan found items worth checking before tidying anything.")
+
+    if duplicate_group_count:
+        findings.append(f"Duplicate filename groups found: {duplicate_group_count}. Some may be expected mirrors or backups.")
+
+    if old_draft_count:
+        findings.append(f"Possible old drafts found: {old_draft_count}. Check context before deleting anything.")
+
+    if empty_folder_count:
+        findings.append(f"Empty folders found: {empty_folder_count}. Check whether they are intentional placeholders.")
+
+    if large_file_count:
+        findings.append(f"Large files over {LARGE_FILE_MB} MB found: {large_file_count}.")
+
+    if not duplicate_group_count and not old_draft_count and not empty_folder_count and not large_file_count:
+        findings.append("Leave this folder alone unless you know something is missing.")
+
+    return findings
+
+
 def scan_folder(folder: Path) -> str:
     files = []
     folders = []
@@ -105,6 +151,15 @@ def scan_folder(folder: Path) -> str:
         reverse=True
     )[:20]
 
+    quick_judgement = build_quick_judgement(
+        files,
+        folders,
+        empty_folders,
+        large_files,
+        possible_old_drafts,
+        duplicate_name_groups,
+    )
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     report = []
@@ -112,6 +167,12 @@ def scan_folder(folder: Path) -> str:
     report.append("")
     report.append(f"Generated: {now}")
     report.append(f"Folder scanned: `{folder}`")
+    report.append("")
+
+    report.append("## Quick judgement")
+    report.append("")
+    for finding in quick_judgement:
+        report.append(f"- {finding}")
     report.append("")
 
     report.append("## Summary")
