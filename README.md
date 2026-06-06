@@ -1,5 +1,7 @@
 # Project Folder Checker
 
+[![Build Windows app](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml)
+
 A small Windows desktop helper for checking messy project folders.
 
 It scans a folder and creates a simple Markdown report showing:
