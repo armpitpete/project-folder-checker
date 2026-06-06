@@ -15,12 +15,24 @@ It scans a folder and creates a simple Markdown report showing:
 
 It does **not** delete, move, rename, or change any files in the scanned folder.
 
-## What it does
+## Download the Windows app
 
-You can use it in two ways:
+For normal users who just want the app, use the Windows `.exe` from GitHub Releases.
+
+Go to:
+
+```text
+Releases → latest release → Project Folder Checker.exe
+```
+
+Then either:
 
 1. Double-click the app and choose a folder.
 2. Drag a folder onto the app.
+
+Note: Windows may warn that the app is from an unknown publisher because it is not code-signed.
+
+## What it does
 
 The report is saved beside the app and opens automatically.
 
@@ -59,6 +71,12 @@ Current behaviour:
 - no automatic file changes
 
 ## Requirements
+
+If you use the `.exe` from Releases:
+
+- Windows
+
+If you run from source:
 
 - Windows
 - Python 3.10 or newer
