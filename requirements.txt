@@ -1,0 +1,4 @@
+# Project Folder Checker currently uses only the Python standard library.
+# PyInstaller is optional and only needed for building a Windows .exe.
+
+pyinstaller>=6.0
