@@ -1,6 +1,7 @@
 from pathlib import Path
 from collections import Counter, defaultdict
 from datetime import datetime
+import re
 import sys
 import os
 import tkinter as tk
@@ -19,17 +20,20 @@ IGNORE_FOLDERS = {
     "venv",
 }
 
-OLD_DRAFT_WORDS = [
+OLD_DRAFT_TOKENS = {
     "old",
     "backup",
     "copy",
     "draft",
-    "final-final",
     "final2",
     "test",
     "temp",
     "archive",
-]
+}
+
+OLD_DRAFT_PHRASES = {
+    "final-final",
+}
 
 
 def app_folder() -> Path:
@@ -51,6 +55,25 @@ def should_ignore(path: Path) -> bool:
 
 def file_size_mb(path: Path) -> float:
     return path.stat().st_size / (1024 * 1024)
+
+
+def filename_tokens(file: Path) -> list[str]:
+    return [
+        token
+        for token in re.split(r"[^a-z0-9]+", file.stem.lower())
+        if token
+    ]
+
+
+def is_possible_old_draft(file: Path) -> bool:
+    name = file.stem.lower()
+
+    if any(phrase in name for phrase in OLD_DRAFT_PHRASES):
+        return True
+
+    tokens = set(filename_tokens(file))
+
+    return any(token in OLD_DRAFT_TOKENS for token in tokens)
 
 
 def build_quick_judgement(
@@ -161,7 +184,7 @@ def scan_folder(folder: Path) -> str:
 
     possible_old_drafts = [
         file for file in files
-        if any(word in file.name.lower() for word in OLD_DRAFT_WORDS)
+        if is_possible_old_draft(file)
     ]
 
     duplicate_names = defaultdict(list)
