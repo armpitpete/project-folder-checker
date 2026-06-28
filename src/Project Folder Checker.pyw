@@ -9,6 +9,8 @@ from tkinter import filedialog, messagebox
 
 LARGE_FILE_MB = 25
 
+APP_VERSION = "v0.8"
+
 IGNORE_FOLDERS = {
     ".git",
     "node_modules",
@@ -224,6 +226,8 @@ def scan_folder(folder: Path) -> str:
     report = []
     report.append("# Project Folder Report")
     report.append("")
+    report.append(f"App version: {APP_VERSION}")
+    report.append("")
     report.append(f"Generated: {now}")
     report.append(f"Folder scanned: `{folder}`")
     report.append("")
@@ -352,13 +356,13 @@ def main():
 
     # Normal app-window mode.
     root = tk.Tk()
-    root.title("Project Folder Checker")
+    root.title(f"Project Folder Checker {APP_VERSION}")
     root.geometry("520x300")
     root.resizable(False, False)
 
     title = tk.Label(
         root,
-        text="Project Folder Checker",
+        text=f"Project Folder Checker {APP_VERSION}",
         font=("Segoe UI", 18, "bold")
     )
     title.pack(pady=(28, 8))
