@@ -3,13 +3,16 @@ from collections import Counter, defaultdict
 from datetime import datetime
 import re
 import sys
+import webbrowser
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
 LARGE_FILE_MB = 25
 
-APP_VERSION = "v0.8.1"
+APP_VERSION = "v0.9"
+
+APP_WEBSITE = "https://github.com/armpitpete/project-folder-checker"
 
 IGNORE_FOLDERS = {
     ".git",
@@ -334,6 +337,26 @@ def show_error(message: str):
     root.destroy()
 
 
+def show_about():
+    messagebox.showinfo(
+        f"About Project Folder Checker {APP_VERSION}",
+        f"Project Folder Checker {APP_VERSION}\n\n"
+        "A small report-only tool for checking project folders.\n\n"
+        "It scans for:\n"
+        "- large files\n"
+        "- possible old drafts\n"
+        "- duplicate filenames\n"
+        "- empty folders\n"
+        "- recently changed files\n\n"
+        "It does not delete, move, rename, or change your files.\n\n"
+        f"Website:\n{APP_WEBSITE}"
+    )
+
+
+def open_website():
+    webbrowser.open(APP_WEBSITE)
+
+
 def main():
     # Drag-folder-onto-app mode.
     if len(sys.argv) > 1:
@@ -418,7 +441,28 @@ def main():
         text="Use the button above to choose a project folder.",
         font=("Segoe UI", 9),
     )
-    note.pack(pady=(24, 0))
+    note.pack(pady=(24, 8))
+
+    button_row = tk.Frame(root)
+    button_row.pack()
+
+    about_button = tk.Button(
+        button_row,
+        text="About",
+        font=("Segoe UI", 9),
+        width=12,
+        command=show_about
+    )
+    about_button.pack(side=tk.LEFT, padx=(0, 8))
+
+    website_button = tk.Button(
+        button_row,
+        text="Website",
+        font=("Segoe UI", 9),
+        width=12,
+        command=open_website
+    )
+    website_button.pack(side=tk.LEFT)
 
     root.mainloop()
 
