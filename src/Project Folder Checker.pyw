@@ -9,7 +9,7 @@ from tkinter import filedialog, messagebox
 
 LARGE_FILE_MB = 25
 
-APP_VERSION = "v0.8"
+APP_VERSION = "v0.8.1"
 
 IGNORE_FOLDERS = {
     ".git",
@@ -415,7 +415,7 @@ def main():
 
     note = tk.Label(
         root,
-        text="You can also drag a folder onto this app file.",
+        text="Use the button above to choose a project folder.",
         font=("Segoe UI", 9),
     )
     note.pack(pady=(24, 0))
