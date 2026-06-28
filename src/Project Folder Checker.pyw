@@ -99,6 +99,35 @@ def build_quick_judgement(
     return findings
 
 
+def build_suggested_actions(
+    empty_folders: list[Path],
+    large_files: list[Path],
+    possible_old_drafts: list[Path],
+    duplicate_name_groups: dict[str, list[Path]],
+) -> list[str]:
+    actions = []
+
+    if possible_old_drafts:
+        actions.append("Check the possible old drafts before deleting or archiving anything.")
+
+    if duplicate_name_groups:
+        actions.append("Check duplicate filenames before deleting anything. Some duplicates may be expected copies.")
+
+    if large_files:
+        actions.append("Review very large files and move them only if they are not needed for the active project.")
+
+    if empty_folders:
+        actions.append("Check whether empty folders are intentional placeholders before removing them.")
+
+    if possible_old_drafts or duplicate_name_groups:
+        actions.append("Move uncertain files to a holding folder instead of deleting them.")
+
+    if not actions:
+        actions.append("No obvious clean-up problems found. Leave this folder alone unless you know something is missing.")
+
+    return actions
+
+
 def scan_folder(folder: Path) -> str:
     files = []
     folders = []
@@ -154,6 +183,13 @@ def scan_folder(folder: Path) -> str:
     quick_judgement = build_quick_judgement(
         files,
         folders,
+        empty_folders,
+        large_files,
+        possible_old_drafts,
+        duplicate_name_groups,
+    )
+
+    suggested_actions = build_suggested_actions(
         empty_folders,
         large_files,
         possible_old_drafts,
@@ -246,11 +282,8 @@ def scan_folder(folder: Path) -> str:
 
     report.append("## Suggested next clean-up actions")
     report.append("")
-    report.append("1. Check the possible old drafts.")
-    report.append("2. Check duplicate filenames before deleting anything.")
-    report.append("3. Compress or move very large files if they are not needed for the active project.")
-    report.append("4. Add or update a `README.md` if this folder does not explain itself.")
-    report.append("5. Move uncertain files to a holding folder instead of deleting them.")
+    for index, action in enumerate(suggested_actions, start=1):
+        report.append(f"{index}. {action}")
     report.append("")
 
     return "\n".join(report)
