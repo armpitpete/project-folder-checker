@@ -26,11 +26,16 @@ jobs:
       - name: Test all audit classifications
         run: python scripts/test_audit_project_controls.py
 
+      - name: Test exact migration-register import
+        run: python scripts/test_build_existing_repository_migration_register.py
+
       - name: Compile Python
         run: |
           python -m py_compile scripts/validate_project_control.py
           python -m py_compile scripts/audit_project_controls.py
           python -m py_compile scripts/test_audit_project_controls.py
+          python -m py_compile scripts/build_existing_repository_migration_register.py
+          python -m py_compile scripts/test_build_existing_repository_migration_register.py
 
   parse-powershell:
     runs-on: windows-latest
@@ -46,7 +51,8 @@ jobs:
             'tools/New-OrderProject.ps1',
             'tools/Run-ProjectControlAudit.ps1',
             'tools/Prove-Central-Project-Control.ps1',
-            'tools/Install-Central-Project-Control.ps1'
+            'tools/Install-Central-Project-Control.ps1',
+            'tools/Build-ExistingRepositoryMigrationRegister.ps1'
           )
           foreach ($File in $Files) {
             $Tokens = $null
