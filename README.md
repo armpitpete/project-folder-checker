@@ -2,19 +2,59 @@
 
 [![Build Windows app](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml)
 
-Project Folder Checker is a small, safe Windows desktop tool for checking project folders.
+Project Folder Checker is a small, safe Windows desktop tool for checking project folders and repository control.
 
-It scans a selected folder and creates a plain Markdown report showing whether the folder looks clean, messy, or worth reviewing.
+It has two report-only roles:
 
-It is designed to answer one simple question:
+1. inspect an individual project folder for clean-up risks;
+2. audit every Git repository under a chosen root for mandatory project control.
 
-Is this project folder clean enough to leave alone?
+## Central future-project enforcement
+
+The repository now contains the canonical enforcement tools for future projects:
+
+```text
+tools/New-OrderProject.ps1
+tools/Run-ProjectControlAudit.ps1
+tools/Prove-Central-Project-Control.ps1
+tools/Install-Central-Project-Control.ps1
+scripts/audit_project_controls.py
+```
+
+`New-OrderProject.ps1`:
+
+- accepts only `armpitpete/project-template`;
+- creates and clones beneath `I:\ORDER\GitHub`;
+- runs the template initializer and validator;
+- permits only the exact initialization changes;
+- commits and pushes the initialized authority state;
+- runs the cross-project audit;
+- preserves failures for diagnosis rather than deleting them;
+- treats GitHub's expected “repository not found” response as the safe creation path while keeping authentication and network failures blocking.
+
+The all-repository auditor classifies repositories as:
+
+- `CONTROLLED`
+- `BOOTSTRAP`
+- `DRIFTED`
+- `UNMANAGED`
+- `BLOCKED`
+
+Default audit output:
+
+```text
+I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md
+```
+
+See `docs/central-project-enforcement.md` for the exact operating contract.
 
 ## Download the Windows app
 
-For normal use, download the Windows `.exe` from GitHub Releases:
+For normal folder inspection, download the Windows `.exe` from GitHub Releases:
 
-Releases -> latest release -> Project.Folder.Checker.exe
+```text
+Releases -> latest release -> Project Folder Checker.exe
+```
 
 Then:
 
@@ -22,113 +62,98 @@ Then:
 2. Click **Choose Folder to Scan**.
 3. Select the project folder you want to check.
 
-Note: Windows may warn that the app is from an unknown publisher because it is not code-signed.
+Windows may warn that the app is from an unknown publisher because it is not code-signed.
 
-## What it checks
+## What the desktop app checks
 
-The report includes:
+The folder report includes:
 
-- total files and folders
-- file types found
-- large files
-- possible old drafts
-- duplicate filenames
-- recently changed files
-- empty folders
-- suggested clean-up actions
+- total files and folders;
+- file types found;
+- large files;
+- possible old drafts;
+- duplicate filenames;
+- recently changed files;
+- empty folders;
+- suggested clean-up actions.
 
-## What it does not do
+## Safety boundary
 
-Project Folder Checker is report-only.
+Project Folder Checker and the project-control auditor are report-only.
 
-It does **not**:
+They do not:
 
-- delete files
-- move files
-- rename files
-- edit files
-- reorganise folders
-- automatically clean anything
+- delete files or repositories;
+- move files;
+- rename files;
+- edit scanned project files;
+- reorganise folders;
+- repair authority automatically.
 
-The app gives you information. You decide what to do next.
+The future-project creator does write only the exact new-repository authority files defined by its contract. It never deletes a failed generated repository automatically.
 
 ## Report output
 
-The report is saved beside the app and opens automatically.
+The desktop report is saved beside the app and opens automatically.
 
-Report filename format:
+Filename format:
 
+```text
 NAME OF FOLDER report.md
+```
 
-Example:
+## Current desktop version
 
-project-folder-checker report.md
-
-## Current version
-
+```text
 v0.9
+```
 
 Current behaviour:
 
-- simple Windows app window
-- visible app version
-- **Choose Folder to Scan** button
-- About button
-- Website button
-- Markdown report output
-- automatic report opening
-- no command window when run as `.pyw`
-- no automatic file changes
-
-## Why it exists
-
-Project folders can get messy quickly.
-
-This tool gives a safe first look before you start cleaning anything. It is useful for checking whether a project folder is:
-
-clean / messy / abandoned / worth fixing / safe to archive
-
-It is designed to be boring, clear, and safe.
+- simple Windows app window;
+- visible app version;
+- **Choose Folder to Scan** button;
+- About button;
+- Website button;
+- Markdown report output;
+- automatic report opening;
+- no command window when run as `.pyw`;
+- no automatic file changes.
 
 ## Requirements
 
-If you use the `.exe` from Releases:
+For the released `.exe`:
 
-- Windows
+- Windows.
 
-If you run from source:
+For source use:
 
-- Windows
-- Python 3.10 or newer
+- Windows;
+- Python 3.10 or newer.
 
-The app uses only Python standard library modules.
+The desktop application and audit use Python standard-library modules only.
 
-## Run from source
+The project creator additionally requires:
 
-Clone the repo:
+- Git;
+- GitHub CLI `gh`;
+- an authenticated GitHub session.
 
-    git clone https://github.com/armpitpete/project-folder-checker.git
-    cd project-folder-checker
+## Run the desktop app from source
 
-Run:
-
-    python "src\Project Folder Checker.pyw"
-
-Or double-click:
-
-    src/Project Folder Checker.pyw
+```powershell
+git clone https://github.com/armpitpete/project-folder-checker.git
+cd project-folder-checker
+python "src\Project Folder Checker.pyw"
+```
 
 ## Build a one-file Windows app
 
 See:
 
+```text
 docs/build-windows.md
-
-## Safety rule
-
-This app reports only.
-
-It should not delete, move, rename, edit, or modify scanned project files automatically.
+```
 
 ## Licence
 
