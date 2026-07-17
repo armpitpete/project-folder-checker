@@ -29,7 +29,7 @@ Existing-repository control migration for the 19 repositories classified `UNMANA
 - classify migration complexity and exceptions;
 - design one exact bounded migration contract per repository;
 - define reviewable migration batches;
-- tests, CI and documentation for this diagnostic lane.
+- add read-only diagnostic import tooling, tests, CI and documentation for this lane.
 
 ## Forbidden changes
 
@@ -37,6 +37,7 @@ Existing-repository control migration for the 19 repositories classified `UNMANA
 - opening target-repository branches or pull requests;
 - replacing or weakening existing project authority;
 - bulk-copy migration without repository-specific inspection;
+- running `git fetch`, checkout, reset, pull, add, commit or push in a target repository;
 - deleting, moving, renaming or archiving repositories;
 - deleting the disposable proof repository;
 - beginning implementation before separate authority.
@@ -45,10 +46,12 @@ Existing-repository control migration for the 19 repositories classified `UNMANA
 
 - project-control validator passes in this repository;
 - the migration authority names the proven audit counts;
-- every inventory entry resolves to one local repository and, where applicable, one GitHub remote;
-- all 19 unmanaged repositories receive one migration classification;
-- every proposed implementation route identifies allowed files, expected diff, validation and stop point;
-- repository diff remains limited to this migration lane's authority, register and diagnostic tooling.
+- the importer rejects any inventory count other than exactly 19;
+- every inventory entry resolves to one local path and records one exact local head;
+- GitHub reconciliation uses read-only API requests and does not update local refs;
+- all 19 unmanaged repositories receive one migration classification and one complete 13-field contract;
+- fixture proof confirms no target worktree changes;
+- repository diff remains limited to migration authority, importer, tests, wrapper and CI.
 
 ## Done
 
@@ -57,19 +60,22 @@ Existing-repository control migration for the 19 repositories classified `UNMANA
 - Disposable proof repository retained at head `0ce94044cbb2cee8dd186968eb6cb2329924ca9c`.
 - Central audit proved `UNMANAGED=19` and `BOOTSTRAP=1`.
 - Separate migration authority opened without changing any target repository.
+- Read-only migration importer implemented.
+- Exact 19-entry fixture import passed.
+- Count-mismatch rejection passed.
+- Fixture worktree preservation passed for all 19 repositories.
 
 ## To do
 
-- Import the exact 19-repository inventory from `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`.
-- Reconcile each entry with its local exact head and GitHub remote.
-- Identify existing `AGENTS.md`, `STATUS.md`, authority and CI structures.
-- Assign migration classification, risk and sequence.
-- Produce one exact migration contract per repository.
+- Run the importer against `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md` and `ACTIVE_WORK.md` on the authority machine.
+- Preserve the generated register at `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`.
+- Import the generated register into this diagnostic lane.
+- Review the 19 classifications, exact heads, existing migration vehicles and proposed routes.
 - Propose bounded migration batches for separate authorisation.
 
 ## Next bounded gate
 
-Import the exact audit inventory, reconcile all 19 repository identities and produce the complete migration register without modifying any target repository.
+Run the read-only importer on the Windows authority machine, then import the complete generated register without modifying any target repository.
 
 ## Stop point
 
