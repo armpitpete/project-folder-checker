@@ -1,20 +1,29 @@
 # Project Folder Checker
 
 [![Build Windows app](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml)
+[![Project control](https://github.com/armpitpete/project-folder-checker/actions/workflows/project-control.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/project-control.yml)
 
 Project Folder Checker is a small, safe Windows desktop tool for checking project folders.
 
-It scans a selected folder and creates a plain Markdown report showing whether the folder looks clean, messy, or worth reviewing.
+It also provides the central read-only audit used to enforce project-control
+authority across repositories beneath `I:\ORDER\GitHub`.
+
+## Desktop folder inspection
+
+The desktop app scans a selected folder and creates a plain Markdown report
+showing whether the folder looks clean, messy, or worth reviewing.
 
 It is designed to answer one simple question:
 
-Is this project folder clean enough to leave alone?
+> Is this project folder clean enough to leave alone?
 
-## Download the Windows app
+### Download the Windows app
 
 For normal use, download the Windows `.exe` from GitHub Releases:
 
-Releases -> latest release -> Project.Folder.Checker.exe
+```text
+Releases → latest release → Project.Folder.Checker.exe
+```
 
 Then:
 
@@ -22,113 +31,182 @@ Then:
 2. Click **Choose Folder to Scan**.
 3. Select the project folder you want to check.
 
-Note: Windows may warn that the app is from an unknown publisher because it is not code-signed.
+Windows may warn that the app is from an unknown publisher because it is not
+code-signed.
 
-## What it checks
+### What the desktop app checks
 
-The report includes:
+- total files and folders;
+- file types found;
+- large files;
+- possible old drafts;
+- duplicate filenames;
+- recently changed files;
+- empty folders;
+- suggested clean-up actions.
 
-- total files and folders
-- file types found
-- large files
-- possible old drafts
-- duplicate filenames
-- recently changed files
-- empty folders
-- suggested clean-up actions
+### Desktop safety boundary
 
-## What it does not do
+The desktop app is report-only. It does not:
 
-Project Folder Checker is report-only.
+- delete files;
+- move files;
+- rename files;
+- edit files;
+- reorganise folders;
+- automatically clean anything.
 
-It does **not**:
+The app gives information. The user decides what to do next.
 
-- delete files
-- move files
-- rename files
-- edit files
-- reorganise folders
-- automatically clean anything
-
-The app gives you information. You decide what to do next.
-
-## Report output
+### Desktop report output
 
 The report is saved beside the app and opens automatically.
 
-Report filename format:
+Filename format:
 
+```text
 NAME OF FOLDER report.md
+```
 
-Example:
+## Central future-project enforcement
 
-project-folder-checker report.md
+The repository also contains the mandatory future-project creation and auditing
+tools.
 
-## Current version
+Canonical documentation:
 
-v0.9
+```text
+docs/central-project-enforcement.md
+```
 
-Current behaviour:
+### Install the central tools
 
-- simple Windows app window
-- visible app version
-- **Choose Folder to Scan** button
-- About button
-- Website button
-- Markdown report output
-- automatic report opening
-- no command window when run as `.pyw`
-- no automatic file changes
+From a current local checkout:
 
-## Why it exists
+```powershell
+powershell -ExecutionPolicy Bypass `
+  -File .\tools\Install-Central-Project-Control.ps1
+```
 
-Project folders can get messy quickly.
+The installer writes verified copies to:
 
-This tool gives a safe first look before you start cleaning anything. It is useful for checking whether a project folder is:
+```text
+I:\ORDER\MainVault\00_Control\Project_Bootstrap
+```
 
-clean / messy / abandoned / worth fixing / safe to archive
+### Create a future project
 
-It is designed to be boring, clear, and safe.
+```powershell
+& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\New-OrderProject.ps1" `
+  -RepositoryName "example-project" `
+  -ProjectName "Example Project" `
+  -ProjectType "system"
+```
+
+The creator refuses non-authoritative templates and always uses:
+
+```text
+armpitpete/project-template
+```
+
+It creates the repository, clones it into `I:\ORDER\GitHub`, initialises its
+authority records, validates them, commits the exact initialisation diff and
+pushes the resulting `main`.
+
+### Audit every local repository
+
+```powershell
+& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\Run-ProjectControlAudit.ps1"
+```
+
+The audit writes:
+
+```text
+I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md
+```
+
+Every Git repository directly beneath `I:\ORDER\GitHub` is classified as:
+
+- `CONTROLLED`;
+- `BOOTSTRAP`;
+- `DRIFTED`;
+- `UNMANAGED`;
+- `BLOCKED`.
+
+Repositories classified as `DRIFTED`, `UNMANAGED` or `BLOCKED` must not continue
+project work until the recorded control problem is resolved.
+
+The audit is read-only. It does not repair or alter scanned repositories.
+
+### Prove the complete workflow
+
+```powershell
+& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\Prove-Central-Project-Control.ps1"
+```
+
+The proof creates and retains one disposable private repository, verifies its
+pushed authority state and requires the audit to classify it as `BOOTSTRAP`.
+It stops before deletion.
+
+## Current desktop version
+
+`v0.9`
+
+Current desktop behaviour:
+
+- simple Windows app window;
+- visible app version;
+- **Choose Folder to Scan** button;
+- About button;
+- Website button;
+- Markdown report output;
+- automatic report opening;
+- no command window when run as `.pyw`;
+- no automatic file changes.
 
 ## Requirements
 
-If you use the `.exe` from Releases:
+### Windows app
 
-- Windows
+- Windows.
 
-If you run from source:
+### Source and central enforcement tools
 
-- Windows
-- Python 3.10 or newer
+- Windows;
+- Python 3.10 or newer;
+- Git;
+- GitHub CLI authenticated with `gh auth login`.
 
-The app uses only Python standard library modules.
+The Python code uses only standard-library modules.
 
-## Run from source
+## Run the desktop app from source
 
-Clone the repo:
-
-    git clone https://github.com/armpitpete/project-folder-checker.git
-    cd project-folder-checker
-
-Run:
-
-    python "src\Project Folder Checker.pyw"
+```powershell
+git clone https://github.com/armpitpete/project-folder-checker.git
+cd project-folder-checker
+python "src\Project Folder Checker.pyw"
+```
 
 Or double-click:
 
-    src/Project Folder Checker.pyw
+```text
+src/Project Folder Checker.pyw
+```
 
 ## Build a one-file Windows app
 
 See:
 
+```text
 docs/build-windows.md
+```
 
-## Safety rule
+## Governing safety rule
 
-This app reports only.
+Project Folder Checker reports only.
 
-It should not delete, move, rename, edit, or modify scanned project files automatically.
+It must not delete, move, rename, edit or automatically repair scanned project
+content.
 
 ## Licence
 
