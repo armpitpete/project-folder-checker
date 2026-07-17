@@ -1,0 +1,64 @@
+name: Project control
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-project-control:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate repository control
+        run: python scripts/validate_project_control.py --repository armpitpete/project-folder-checker
+
+      - name: Test all audit classifications
+        run: python scripts/test_audit_project_controls.py
+
+      - name: Compile Python
+        run: |
+          python -m py_compile scripts/validate_project_control.py
+          python -m py_compile scripts/audit_project_controls.py
+          python -m py_compile scripts/test_audit_project_controls.py
+
+  parse-powershell:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse PowerShell tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Files = @(
+            'tools/New-OrderProject.ps1',
+            'tools/Run-ProjectControlAudit.ps1',
+            'tools/Prove-Central-Project-Control.ps1',
+            'tools/Install-Central-Project-Control.ps1'
+          )
+          foreach ($File in $Files) {
+            $Tokens = $null
+            $Errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $File),
+              [ref]$Tokens,
+              [ref]$Errors
+            ) | Out-Null
+            if ($Errors.Count -gt 0) {
+              $Errors | ForEach-Object { Write-Error "$File: $_" }
+              exit 1
+            }
+            Write-Host "PASS: $File"
+          }
