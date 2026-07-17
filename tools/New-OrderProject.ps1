@@ -98,7 +98,7 @@ function Resolve-RemoteRepositoryProbe {
     $Diagnostic = $Output.Trim()
     throw (
         "Could not determine whether remote repository exists: $Repository" +
-        $(if ($Diagnostic) { "`n$Diagnostic" } else { '' })
+        $(if ($Diagnostic) { "`n$Diagnostic" } else { "`nGitHub CLI exit code: $ExitCode" })
     )
 }
 
@@ -108,23 +108,44 @@ function Test-RemoteRepositoryExists {
         [string]$Repository
     )
 
-    $PreviousPreference = $ErrorActionPreference
+    # Use System.Diagnostics.Process rather than PowerShell's native-command
+    # pipeline. Windows PowerShell can convert expected stderr from `gh` into
+    # terminating error records before the exit code and message can be read.
+    $Gh = Get-Command gh -ErrorAction Stop
+
+    $StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $StartInfo.FileName = $Gh.Source
+    $StartInfo.Arguments = "api repos/$Repository --silent"
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.CreateNoWindow = $true
+    $StartInfo.RedirectStandardOutput = $true
+    $StartInfo.RedirectStandardError = $true
+
+    $Process = New-Object System.Diagnostics.Process
+    $Process.StartInfo = $StartInfo
+
     try {
-        # A missing repository is the expected path during creation. Windows
-        # PowerShell converts native stderr into an error record, so temporarily
-        # suppress that record and inspect both the exit code and message.
-        $ErrorActionPreference = 'SilentlyContinue'
-        $ProbeOutput = (& gh repo view $Repository --json nameWithOwner 2>&1 | Out-String)
-        $ProbeExitCode = $LASTEXITCODE
+        if (-not $Process.Start()) {
+            throw 'Could not start GitHub CLI repository probe.'
+        }
+
+        $StandardOutput = $Process.StandardOutput.ReadToEnd()
+        $StandardError = $Process.StandardError.ReadToEnd()
+        $Process.WaitForExit()
+
+        $CombinedOutput = @(
+            $StandardOutput
+            $StandardError
+        ) -join "`n"
+
+        return Resolve-RemoteRepositoryProbe `
+            -ExitCode $Process.ExitCode `
+            -Output $CombinedOutput `
+            -Repository $Repository
     }
     finally {
-        $ErrorActionPreference = $PreviousPreference
+        $Process.Dispose()
     }
-
-    return Resolve-RemoteRepositoryProbe `
-        -ExitCode $ProbeExitCode `
-        -Output $ProbeOutput `
-        -Repository $Repository
 }
 
 if ($LibraryOnly) {
@@ -269,8 +290,8 @@ try {
     $AuditRunner = Join-Path $PSScriptRoot 'Run-ProjectControlAudit.ps1'
     if (Test-Path $AuditRunner) {
         & $AuditRunner -GitHubRoot $GitHubRoot -OutputPath $AuditOutput
-        if ($LASTEXITCODE -ne 0) {
-            throw "Repository was created, but the cross-project audit command failed."
+        if ($LASTEXITCODE -notin @(0, 2)) {
+            throw 'Repository was created, but the cross-project audit command failed.'
         }
     }
 
@@ -285,7 +306,7 @@ try {
 catch {
     Write-Error $_
     if ($RemoteCreated) {
-        Write-Warning "The remote repository and any local clone have been preserved for diagnosis."
+        Write-Warning 'The remote repository and any local clone have been preserved for diagnosis.'
         Write-Warning "Automatic deletion is prohibited: $FullRepository"
     }
     throw
