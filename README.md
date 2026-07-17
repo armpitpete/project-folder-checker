@@ -1,28 +1,59 @@
 # Project Folder Checker
 
 [![Build Windows app](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/build-windows.yml)
-[![Project control](https://github.com/armpitpete/project-folder-checker/actions/workflows/project-control.yml/badge.svg)](https://github.com/armpitpete/project-folder-checker/actions/workflows/project-control.yml)
 
-Project Folder Checker is a small, safe Windows desktop tool for checking project folders.
+Project Folder Checker is a small, safe Windows desktop tool for checking project folders and repository control.
 
-It also provides the central read-only audit used to enforce project-control
-authority across repositories beneath `I:\ORDER\GitHub`.
+It has two report-only roles:
 
-## Desktop folder inspection
+1. inspect an individual project folder for clean-up risks;
+2. audit every Git repository under a chosen root for mandatory project control.
 
-The desktop app scans a selected folder and creates a plain Markdown report
-showing whether the folder looks clean, messy, or worth reviewing.
+## Central future-project enforcement
 
-It is designed to answer one simple question:
-
-> Is this project folder clean enough to leave alone?
-
-### Download the Windows app
-
-For normal use, download the Windows `.exe` from GitHub Releases:
+The repository now contains the canonical enforcement tools for future projects:
 
 ```text
-Releases → latest release → Project.Folder.Checker.exe
+tools/New-OrderProject.ps1
+tools/Run-ProjectControlAudit.ps1
+tools/Prove-Central-Project-Control.ps1
+tools/Install-Central-Project-Control.ps1
+scripts/audit_project_controls.py
+```
+
+`New-OrderProject.ps1`:
+
+- accepts only `armpitpete/project-template`;
+- creates and clones beneath `I:\ORDER\GitHub`;
+- runs the template initializer and validator;
+- permits only the exact initialization changes;
+- commits and pushes the initialized authority state;
+- runs the cross-project audit;
+- preserves failures for diagnosis rather than deleting them;
+- treats GitHub's expected “repository not found” response as the safe creation path while keeping authentication and network failures blocking.
+
+The all-repository auditor classifies repositories as:
+
+- `CONTROLLED`
+- `BOOTSTRAP`
+- `DRIFTED`
+- `UNMANAGED`
+- `BLOCKED`
+
+Default audit output:
+
+```text
+I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md
+```
+
+See `docs/central-project-enforcement.md` for the exact operating contract.
+
+## Download the Windows app
+
+For normal folder inspection, download the Windows `.exe` from GitHub Releases:
+
+```text
+Releases -> latest release -> Project Folder Checker.exe
 ```
 
 Then:
@@ -31,10 +62,11 @@ Then:
 2. Click **Choose Folder to Scan**.
 3. Select the project folder you want to check.
 
-Windows may warn that the app is from an unknown publisher because it is not
-code-signed.
+Windows may warn that the app is from an unknown publisher because it is not code-signed.
 
-### What the desktop app checks
+## What the desktop app checks
+
+The folder report includes:
 
 - total files and folders;
 - file types found;
@@ -45,22 +77,24 @@ code-signed.
 - empty folders;
 - suggested clean-up actions.
 
-### Desktop safety boundary
+## Safety boundary
 
-The desktop app is report-only. It does not:
+Project Folder Checker and the project-control auditor are report-only.
 
-- delete files;
+They do not:
+
+- delete files or repositories;
 - move files;
 - rename files;
-- edit files;
+- edit scanned project files;
 - reorganise folders;
-- automatically clean anything.
+- repair authority automatically.
 
-The app gives information. The user decides what to do next.
+The future-project creator does write only the exact new-repository authority files defined by its contract. It never deletes a failed generated repository automatically.
 
-### Desktop report output
+## Report output
 
-The report is saved beside the app and opens automatically.
+The desktop report is saved beside the app and opens automatically.
 
 Filename format:
 
@@ -68,91 +102,13 @@ Filename format:
 NAME OF FOLDER report.md
 ```
 
-## Central future-project enforcement
-
-The repository also contains the mandatory future-project creation and auditing
-tools.
-
-Canonical documentation:
-
-```text
-docs/central-project-enforcement.md
-```
-
-### Install the central tools
-
-From a current local checkout:
-
-```powershell
-powershell -ExecutionPolicy Bypass `
-  -File .\tools\Install-Central-Project-Control.ps1
-```
-
-The installer writes verified copies to:
-
-```text
-I:\ORDER\MainVault\00_Control\Project_Bootstrap
-```
-
-### Create a future project
-
-```powershell
-& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\New-OrderProject.ps1" `
-  -RepositoryName "example-project" `
-  -ProjectName "Example Project" `
-  -ProjectType "system"
-```
-
-The creator refuses non-authoritative templates and always uses:
-
-```text
-armpitpete/project-template
-```
-
-It creates the repository, clones it into `I:\ORDER\GitHub`, initialises its
-authority records, validates them, commits the exact initialisation diff and
-pushes the resulting `main`.
-
-### Audit every local repository
-
-```powershell
-& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\Run-ProjectControlAudit.ps1"
-```
-
-The audit writes:
-
-```text
-I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md
-```
-
-Every Git repository directly beneath `I:\ORDER\GitHub` is classified as:
-
-- `CONTROLLED`;
-- `BOOTSTRAP`;
-- `DRIFTED`;
-- `UNMANAGED`;
-- `BLOCKED`.
-
-Repositories classified as `DRIFTED`, `UNMANAGED` or `BLOCKED` must not continue
-project work until the recorded control problem is resolved.
-
-The audit is read-only. It does not repair or alter scanned repositories.
-
-### Prove the complete workflow
-
-```powershell
-& "I:\ORDER\MainVault\00_Control\Project_Bootstrap\Prove-Central-Project-Control.ps1"
-```
-
-The proof creates and retains one disposable private repository, verifies its
-pushed authority state and requires the audit to classify it as `BOOTSTRAP`.
-It stops before deletion.
-
 ## Current desktop version
 
-`v0.9`
+```text
+v0.9
+```
 
-Current desktop behaviour:
+Current behaviour:
 
 - simple Windows app window;
 - visible app version;
@@ -166,18 +122,22 @@ Current desktop behaviour:
 
 ## Requirements
 
-### Windows app
+For the released `.exe`:
 
 - Windows.
 
-### Source and central enforcement tools
+For source use:
 
 - Windows;
-- Python 3.10 or newer;
-- Git;
-- GitHub CLI authenticated with `gh auth login`.
+- Python 3.10 or newer.
 
-The Python code uses only standard-library modules.
+The desktop application and audit use Python standard-library modules only.
+
+The project creator additionally requires:
+
+- Git;
+- GitHub CLI `gh`;
+- an authenticated GitHub session.
 
 ## Run the desktop app from source
 
@@ -187,12 +147,6 @@ cd project-folder-checker
 python "src\Project Folder Checker.pyw"
 ```
 
-Or double-click:
-
-```text
-src/Project Folder Checker.pyw
-```
-
 ## Build a one-file Windows app
 
 See:
@@ -200,13 +154,6 @@ See:
 ```text
 docs/build-windows.md
 ```
-
-## Governing safety rule
-
-Project Folder Checker reports only.
-
-It must not delete, move, rename, edit or automatically repair scanned project
-content.
 
 ## Licence
 
