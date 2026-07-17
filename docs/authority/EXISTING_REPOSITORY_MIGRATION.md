@@ -23,11 +23,35 @@ Convert the 19 existing unmanaged local repositories into explicitly controlled 
 
 Inventory and migration-contract design only.
 
+## Import authority
+
+The exact source files are:
+
+- `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`;
+- `I:\ORDER\MainVault\00_Control\ACTIVE_WORK.md`.
+
+The authorised read-only importer is:
+
+- `scripts/build_existing_repository_migration_register.py`;
+- PowerShell entrypoint `tools/Build-ExistingRepositoryMigrationRegister.ps1`.
+
+It must:
+
+1. verify exactly 19 `UNMANAGED` findings;
+2. hash both source authority files;
+3. read local Git heads, branches, origins and worktree state without fetching or changing refs;
+4. use read-only GitHub API requests to reconcile remote identity, default head and existing control PRs;
+5. classify every migration as `ACTIVE`, `INACTIVE`, `ARCHIVED`, `DUPLICATE`, `EXCEPTIONAL` or `READY_FOR_CONTROL_MIGRATION`;
+6. emit one complete 13-field migration record per repository;
+7. write `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`;
+8. report `TARGET_REPOSITORIES_CHANGED=0`.
+
 ## Allowed scope
 
 - import the exact repository list from `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`;
 - verify each local repository path and corresponding GitHub remote;
 - identify existing authority, status, agent and workflow files;
+- detect existing open or merged project-control migration vehicles;
 - classify each repository as active, inactive, archived, duplicate, exceptional or ready for control migration;
 - define one bounded migration contract per repository;
 - group migrations into reviewable batches without implementing them;
@@ -36,6 +60,7 @@ Inventory and migration-contract design only.
 ## Forbidden changes
 
 - no edits inside any of the 19 target repositories;
+- no `git fetch`, pull, checkout, reset, add, commit or push in a target repository;
 - no creation of target-repository branches or pull requests;
 - no replacement of existing authority records;
 - no migration by bulk copy without repository-specific inspection;
