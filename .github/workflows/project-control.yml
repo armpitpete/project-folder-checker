@@ -57,7 +57,7 @@ jobs:
               [ref]$Errors
             ) | Out-Null
             if ($Errors.Count -gt 0) {
-              $Errors | ForEach-Object { Write-Error "$File: $_" }
+              $Errors | ForEach-Object { Write-Error "${File}: $_" }
               exit 1
             }
             Write-Host "PASS: $File"
