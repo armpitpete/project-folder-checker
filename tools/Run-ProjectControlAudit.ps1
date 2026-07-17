@@ -20,6 +20,10 @@ function Resolve-Python {
 
 $AuditScript = Join-Path $PSScriptRoot 'audit_project_controls.py'
 if (-not (Test-Path $AuditScript)) {
+    $RepositoryRoot = Split-Path -Parent $PSScriptRoot
+    $AuditScript = Join-Path $RepositoryRoot 'scripts\audit_project_controls.py'
+}
+if (-not (Test-Path $AuditScript)) {
     throw "Audit implementation is missing: $AuditScript"
 }
 
