@@ -130,6 +130,8 @@ def run(command: list[str], *, cwd: Path | None = None, timeout: int = 90) -> su
             command,
             cwd=cwd,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=timeout,
@@ -147,7 +149,7 @@ def run_git(repo: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
 
 def gh_json(endpoint: str) -> tuple[int, Any | None, str]:
     completed = run(["gh", "api", endpoint], timeout=120)
-    output = completed.stdout.strip()
+    output = (completed.stdout or "").strip()
     if completed.returncode != 0:
         return completed.returncode, None, output
     try:
@@ -189,62 +191,28 @@ def parse_audit(path: Path, expected_count: int) -> list[AuditEntry]:
     return sorted(entries, key=lambda item: item.repository.lower())
 
 
-def parse_active_work(path: Path) -> tuple[set[str], str]:
+def active_repositories(path: Path) -> set[str]:
     if not path.is_file():
-        raise RegisterError(f"ACTIVE_WORK.md does not exist: {path}")
-    text = path.read_text(encoding="utf-8")
-    slugs = {match.group(1).lower() for match in REPO_SLUG_RE.finditer(text)}
-    return slugs, sha256_file(path)
+        return set()
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return {match.group(1).lower() for match in REPO_SLUG_RE.finditer(text)}
 
 
-def normalise_remote(url: str) -> str:
+def normalise_remote(remote: str) -> str:
     patterns = (
         r"github\.com[:/](?P<slug>[^/\s]+/[^/\s]+?)(?:\.git)?$",
         r"api\.github\.com/repos/(?P<slug>[^/\s]+/[^/\s]+)$",
     )
     for pattern in patterns:
-        match = re.search(pattern, url.strip())
+        match = re.search(pattern, remote)
         if match:
             return match.group("slug")
     return ""
 
 
-def safe_rel(path: Path, root: Path) -> str:
-    try:
-        return path.relative_to(root).as_posix()
-    except ValueError:
-        return str(path)
-
-
-def find_authority_candidates(repo: Path) -> tuple[str, ...]:
-    found: list[str] = []
-    for path in repo.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in IGNORED_DIRS for part in path.parts):
-            continue
-        rel = safe_rel(path, repo)
-        lower = rel.lower()
-        if rel in REQUIRED_FILES:
-            found.append(rel)
-            continue
-        if path.suffix.lower() not in {".md", ".json", ".yaml", ".yml", ".toml"}:
-            continue
-        if AUTHORITY_NAME_RE.search(path.name) or lower.startswith("docs/authority/"):
-            found.append(rel)
-    unique = sorted(set(found), key=str.lower)
-    return tuple(unique[:40] + ([f"… plus {len(unique) - 40} more"] if len(unique) > 40 else []))
-
-
-def find_workflows(repo: Path) -> tuple[str, ...]:
-    root = repo / ".github" / "workflows"
-    if not root.is_dir():
-        return ()
-    return tuple(sorted(safe_rel(path, repo) for path in root.iterdir() if path.is_file()))
-
-
-def local_git_state(entry: AuditEntry) -> dict[str, Any]:
+def local_state(entry: AuditEntry) -> tuple[dict[str, Any], list[str]]:
     repo = entry.local_path
+    errors: list[str] = []
     state: dict[str, Any] = {
         "local_exists": repo.is_dir(),
         "git_repository": False,
@@ -255,27 +223,30 @@ def local_git_state(entry: AuditEntry) -> dict[str, Any]:
         "origin_url": "",
         "normalised_remote": "",
         "existing_required_files": (),
-        "missing_required_files": tuple(REQUIRED_FILES),
+        "missing_required_files": REQUIRED_FILES,
         "authority_candidates": (),
         "workflow_files": (),
-        "errors": [],
     }
     if not repo.is_dir():
-        state["errors"].append("local path does not exist")
-        return state
-    state["git_repository"] = (repo / ".git").exists()
-    if not state["git_repository"]:
-        state["errors"].append("local path is not a Git worktree")
-        return state
+        errors.append(f"local path does not exist: {repo}")
+        return state, errors
+    probe = run_git(repo, ["rev-parse", "--is-inside-work-tree"])
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        errors.append("local path is not a Git worktree")
+        return state, errors
+    state["git_repository"] = True
 
-    head = run_git(repo, ["rev-parse", "HEAD"])
-    if head.returncode == 0:
-        state["local_head"] = head.stdout.strip()
-    else:
-        state["errors"].append(f"could not resolve local HEAD: {head.stdout.strip()}")
-
-    branch = run_git(repo, ["symbolic-ref", "--short", "-q", "HEAD"])
-    state["local_branch"] = branch.stdout.strip() if branch.returncode == 0 else "DETACHED"
+    commands = {
+        "local_head": ["rev-parse", "HEAD"],
+        "local_branch": ["branch", "--show-current"],
+        "origin_url": ["config", "--get", "remote.origin.url"],
+    }
+    for key, args in commands.items():
+        completed = run_git(repo, args)
+        if completed.returncode == 0:
+            state[key] = completed.stdout.strip()
+        else:
+            errors.append(f"git {' '.join(args)} failed with exit {completed.returncode}")
 
     status = run_git(repo, ["status", "--porcelain=v1", "--untracked-files=all"])
     if status.returncode == 0:
@@ -283,55 +254,77 @@ def local_git_state(entry: AuditEntry) -> dict[str, Any]:
         state["local_status_count"] = len(lines)
         state["local_dirty"] = bool(lines)
     else:
-        state["errors"].append(f"git status failed: {status.stdout.strip()}")
+        errors.append(f"git status failed with exit {status.returncode}")
 
-    origin = run_git(repo, ["remote", "get-url", "origin"])
-    if origin.returncode == 0:
-        state["origin_url"] = origin.stdout.strip()
-        state["normalised_remote"] = normalise_remote(state["origin_url"])
-        if not state["normalised_remote"]:
-            state["errors"].append("origin URL could not be normalised to owner/repository")
-    else:
-        state["errors"].append("origin remote is missing")
-
+    state["normalised_remote"] = normalise_remote(state["origin_url"])
     existing = tuple(relative for relative in REQUIRED_FILES if (repo / relative).is_file())
     state["existing_required_files"] = existing
-    state["missing_required_files"] = tuple(relative for relative in REQUIRED_FILES if relative not in existing)
-    state["authority_candidates"] = find_authority_candidates(repo)
-    state["workflow_files"] = find_workflows(repo)
-    return state
-
-
-def list_control_prs(repository: str) -> tuple[PullRequestRecord, ...]:
-    code, payload, diagnostic = gh_json(f"repos/{repository}/pulls?state=all&sort=updated&direction=desc&per_page=50")
-    if code != 0 or not isinstance(payload, list):
-        return ()
-    candidates: list[PullRequestRecord] = []
-    for pr in payload:
-        title = str(pr.get("title") or "")
-        body = str(pr.get("body") or "")
-        head_ref = str((pr.get("head") or {}).get("ref") or "")
-        marker = " ".join((title, body, head_ref)).lower()
-        if not any(token in marker for token in ("project-control", "project control", "governance", "authority")):
+    state["missing_required_files"] = tuple(
+        relative for relative in REQUIRED_FILES if relative not in existing
+    )
+    authority_candidates: list[str] = []
+    workflow_files: list[str] = []
+    for path in repo.rglob("*"):
+        if not path.is_file() or any(part in IGNORED_DIRS for part in path.parts):
             continue
-        number = int(pr.get("number"))
-        files_code, files_payload, _ = gh_json(f"repos/{repository}/pulls/{number}/files?per_page=100")
-        files: tuple[str, ...] = ()
-        if files_code == 0 and isinstance(files_payload, list):
-            files = tuple(sorted(str(item.get("filename") or "") for item in files_payload if item.get("filename")))
-        candidates.append(PullRequestRecord(
+        relative = path.relative_to(repo).as_posix()
+        if relative.startswith(".github/workflows/"):
+            workflow_files.append(relative)
+        if path.suffix.lower() in {".md", ".json", ".yaml", ".yml"} and AUTHORITY_NAME_RE.search(path.name):
+            authority_candidates.append(relative)
+    state["authority_candidates"] = tuple(sorted(set(authority_candidates)))
+    state["workflow_files"] = tuple(sorted(set(workflow_files)))
+    return state, errors
+
+
+def list_control_prs(repository: str) -> tuple[tuple[PullRequestRecord, ...], list[str]]:
+    errors: list[str] = []
+    code, payload, diagnostic = gh_json(
+        f"repos/{repository}/pulls?state=all&sort=updated&direction=desc&per_page=100"
+    )
+    if code != 0 or not isinstance(payload, list):
+        return (), [f"could not list pull requests: {diagnostic or f'exit {code}'}"]
+    records: list[PullRequestRecord] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        number = int(item.get("number", 0))
+        title = str(item.get("title", ""))
+        head = item.get("head") if isinstance(item.get("head"), dict) else {}
+        base = item.get("base") if isinstance(item.get("base"), dict) else {}
+        head_sha = str(head.get("sha", ""))
+        base_sha = str(base.get("sha", ""))
+        files_code, files_payload, files_diag = gh_json(
+            f"repos/{repository}/pulls/{number}/files?per_page=100"
+        )
+        if files_code != 0 or not isinstance(files_payload, list):
+            errors.append(
+                f"could not inspect files for PR #{number}: {files_diag or f'exit {files_code}'}"
+            )
+            files = ()
+        else:
+            files = tuple(
+                sorted(
+                    str(file.get("filename", ""))
+                    for file in files_payload
+                    if isinstance(file, dict) and file.get("filename")
+                )
+            )
+        record = PullRequestRecord(
             number=number,
             title=title,
-            state=str(pr.get("state") or ""),
-            draft=bool(pr.get("draft")),
-            merged=bool(pr.get("merged_at")),
-            head_sha=str((pr.get("head") or {}).get("sha") or ""),
-            base_sha=str((pr.get("base") or {}).get("sha") or ""),
-            merge_commit_sha=str(pr.get("merge_commit_sha") or ""),
-            html_url=str(pr.get("html_url") or ""),
+            state=str(item.get("state", "")),
+            draft=bool(item.get("draft", False)),
+            merged=bool(item.get("merged_at")),
+            head_sha=head_sha,
+            base_sha=base_sha,
+            merge_commit_sha=str(item.get("merge_commit_sha") or ""),
+            html_url=str(item.get("html_url", "")),
             files=files,
-        ))
-    return tuple(candidates[:10])
+        )
+        if record.coverage or re.search(r"project.control|governance|authority|status", title, re.IGNORECASE):
+            records.append(record)
+    return tuple(records), errors
 
 
 def remote_state(repository: str, local_head: str, *, skip_github: bool) -> dict[str, Any]:
@@ -351,116 +344,80 @@ def remote_state(repository: str, local_head: str, *, skip_github: bool) -> dict
     if skip_github:
         state["errors"].append("GitHub reconciliation skipped")
         return state
+
     code, payload, diagnostic = gh_json(f"repos/{repository}")
     if code != 0 or not isinstance(payload, dict):
-        state["errors"].append(f"GitHub repository could not be read: {diagnostic or f'exit {code}'}")
+        state["errors"].append(f"remote repository could not be read: {diagnostic or f'exit {code}'}")
         return state
     state["remote_exists"] = True
-    state["remote_archived"] = bool(payload.get("archived"))
-    state["remote_disabled"] = bool(payload.get("disabled"))
-    state["remote_default_branch"] = str(payload.get("default_branch") or "")
+    state["remote_archived"] = bool(payload.get("archived", False))
+    state["remote_disabled"] = bool(payload.get("disabled", False))
+    default_branch = str(payload.get("default_branch", ""))
+    state["remote_default_branch"] = default_branch
 
-    default_branch = state["remote_default_branch"]
     if default_branch:
         branch_code, branch_payload, branch_diag = gh_json(f"repos/{repository}/commits/{default_branch}")
         if branch_code == 0 and isinstance(branch_payload, dict):
-            state["remote_default_head"] = str(branch_payload.get("sha") or "")
+            state["remote_default_head"] = str(branch_payload.get("sha", ""))
         else:
-            state["errors"].append(f"remote default head could not be read: {branch_diag or f'exit {branch_code}'}")
+            state["errors"].append(
+                f"default-branch head could not be read: {branch_diag or f'exit {branch_code}'}"
+            )
 
     if local_head:
-        head_code, head_payload, _ = gh_json(f"repos/{repository}/commits/{local_head}")
-        state["local_head_on_remote"] = head_code == 0 and isinstance(head_payload, dict)
-        if state["local_head_on_remote"] and state["remote_default_head"]:
+        commit_code, commit_payload, _ = gh_json(f"repos/{repository}/commits/{local_head}")
+        state["local_head_on_remote"] = commit_code == 0 and isinstance(commit_payload, dict)
+        if state["remote_default_head"]:
             compare_code, compare_payload, compare_diag = gh_json(
                 f"repos/{repository}/compare/{state['remote_default_head']}...{local_head}"
             )
             if compare_code == 0 and isinstance(compare_payload, dict):
-                state["comparison_status"] = str(compare_payload.get("status") or "")
-                state["ahead_by"] = int(compare_payload.get("ahead_by") or 0)
-                state["behind_by"] = int(compare_payload.get("behind_by") or 0)
+                state["comparison_status"] = str(compare_payload.get("status", ""))
+                state["ahead_by"] = int(compare_payload.get("ahead_by", 0))
+                state["behind_by"] = int(compare_payload.get("behind_by", 0))
             else:
-                state["errors"].append(f"local/default comparison failed: {compare_diag or f'exit {compare_code}'}")
-        elif not state["local_head_on_remote"]:
-            state["errors"].append("local HEAD is not present in the GitHub repository")
+                state["errors"].append(
+                    f"head comparison could not be read: {compare_diag or f'exit {compare_code}'}"
+                )
 
-    state["control_prs"] = list_control_prs(repository)
+    prs, pr_errors = list_control_prs(repository)
+    state["control_prs"] = prs
+    state["errors"].extend(pr_errors)
     return state
 
 
-def classify_records(records: list[RepositoryRecord]) -> None:
-    remote_groups: dict[str, list[RepositoryRecord]] = defaultdict(list)
-    for record in records:
-        key = record.normalised_remote.lower() if record.normalised_remote else record.audit.repository.lower()
-        remote_groups[key].append(record)
-
-    for record in records:
-        duplicate = len(remote_groups[record.normalised_remote.lower() if record.normalised_remote else record.audit.repository.lower()]) > 1
-        errors = list(record.errors)
-        if record.normalised_remote and record.normalised_remote.lower() != record.audit.repository.lower():
-            errors.append(
-                f"audit repository {record.audit.repository} does not match origin {record.normalised_remote}"
-            )
-        open_complete_prs = [
-            pr for pr in record.control_prs
-            if pr.state == "open" and len(pr.coverage) >= 4
-        ]
-        merged_control_prs = [pr for pr in record.control_prs if pr.merged and pr.merge_commit_sha]
-        partial_control = 0 < len(record.existing_required_files) < len(REQUIRED_FILES)
-        reconciliation_exception = (
-            not record.local_exists
-            or not record.git_repository
-            or not record.remote_exists
-            or not record.normalised_remote
-            or not record.local_head
-            or not record.local_head_on_remote
-            or record.local_branch == "DETACHED"
-            or record.local_dirty
-            or bool(errors)
-        )
-
-        if record.remote_archived:
-            classification = "ARCHIVED"
-            route = "Create an exception record only; do not migrate unless the repository is explicitly reactivated."
-        elif duplicate:
-            classification = "DUPLICATE"
-            route = "Resolve the canonical local worktree and remote identity before any control migration."
-        elif reconciliation_exception:
-            classification = "EXCEPTIONAL"
-            route = "Resolve local/remote reconciliation defects on a separate bounded gate before control implementation."
-        elif record.active_evidence:
-            classification = "ACTIVE"
-            if open_complete_prs:
-                pr = open_complete_prs[0]
-                route = f"Review and promote existing control PR #{pr.number} at exact head {pr.head_sha}; do not create a duplicate migration PR."
-            elif merged_control_prs and record.local_head != record.remote_default_head:
-                pr = merged_control_prs[0]
-                route = f"Synchronise the local worktree to the remote authority containing merged control PR #{pr.number}, then rerun the audit."
-            else:
-                route = "Design a repository-specific control PR that preserves the active lane and existing authority."
-        elif open_complete_prs:
-            classification = "READY_FOR_CONTROL_MIGRATION"
-            pr = open_complete_prs[0]
-            route = f"Use existing control PR #{pr.number} at exact head {pr.head_sha} as the migration vehicle after repository-specific review."
-        elif not partial_control and not record.authority_candidates:
-            classification = "READY_FOR_CONTROL_MIGRATION"
-            route = "Create a repository-specific control PR from the exact reconciled head using the canonical skeleton."
-        else:
-            classification = "INACTIVE"
-            route = "Record an inactive or blocked authoritative state, then adapt controls around existing authority without reactivating project work."
-
-        record.errors = tuple(errors)
-        record.migration_classification = classification
-        record.migration_route = route
+def classify(record: RepositoryRecord) -> tuple[str, str]:
+    if not record.local_exists or not record.git_repository:
+        return "EXCEPTION — LOCAL REPOSITORY UNAVAILABLE", "Resolve local identity before migration."
+    if record.normalised_remote and record.normalised_remote.lower() != record.audit.repository.lower():
+        return "EXCEPTION — IDENTITY CONFLICT", "Resolve local-origin and audit identity before migration."
+    if not record.remote_exists:
+        return "EXCEPTION — REMOTE UNRESOLVED", "Resolve remote existence or adopt a local-only exception record."
+    if record.remote_archived or record.remote_disabled:
+        return "EXCEPTION — REMOTE ARCHIVED OR DISABLED", "Record archival exception; do not inject active controls."
+    if record.local_dirty:
+        return "BLOCKED — DIRTY WORKTREE", "Preserve and reconcile local uncommitted work before any control branch."
+    if not record.local_head_on_remote:
+        return "BLOCKED — LOCAL HEAD NOT ON REMOTE", "Publish or reconcile the exact local head before migration."
+    open_covering = [pr for pr in record.control_prs if pr.state == "open" and pr.coverage]
+    if open_covering:
+        return "EXISTING CONTROL PR — REVIEW FIRST", "Review the existing control PR; do not create a duplicate migration branch."
+    merged_covering = [pr for pr in record.control_prs if pr.merged and pr.coverage]
+    if merged_covering and record.missing_required_files:
+        return "LOCAL CHECKOUT STALE AFTER CONTROL MERGE", "Synchronise local authority before reassessing migration need."
+    if record.active_evidence:
+        return "ACTIVE — REPOSITORY-SPECIFIC MIGRATION", "Design one exact control PR preserving the current active lane."
+    if record.authority_candidates or record.workflow_files:
+        return "INACTIVE OR UNKNOWN — AUTHORITY-PRESERVING MIGRATION", "Inspect existing authority and workflows before a bounded control PR."
+    return "INACTIVE OR UNKNOWN — STANDARD MIGRATION", "Apply the standard control skeleton only after exact-head review."
 
 
 def inspect_entry(entry: AuditEntry, active_slugs: set[str], *, skip_github: bool) -> RepositoryRecord:
-    local = local_git_state(entry)
-    repository_for_remote = local["normalised_remote"] or entry.repository
+    local, local_errors = local_state(entry)
+    repository_for_remote = local.get("normalised_remote") or entry.repository
     remote = remote_state(repository_for_remote, local["local_head"], skip_github=skip_github)
-    errors = tuple(local["errors"] + remote["errors"])
-    active = entry.repository.lower() in active_slugs or repository_for_remote.lower() in active_slugs
-    return RepositoryRecord(
+    errors = tuple(local_errors + list(remote["errors"]))
+    record = RepositoryRecord(
         audit=entry,
         local_exists=local["local_exists"],
         git_repository=local["git_repository"],
@@ -479,7 +436,7 @@ def inspect_entry(entry: AuditEntry, active_slugs: set[str], *, skip_github: boo
         comparison_status=remote["comparison_status"],
         ahead_by=remote["ahead_by"],
         behind_by=remote["behind_by"],
-        active_evidence=active,
+        active_evidence=(entry.repository.lower() in active_slugs or repository_for_remote.lower() in active_slugs),
         existing_required_files=local["existing_required_files"],
         missing_required_files=local["missing_required_files"],
         authority_candidates=local["authority_candidates"],
@@ -487,48 +444,95 @@ def inspect_entry(entry: AuditEntry, active_slugs: set[str], *, skip_github: boo
         control_prs=remote["control_prs"],
         errors=errors,
     )
+    record.migration_classification, record.migration_route = classify(record)
+    return record
 
 
 def md_code(value: str) -> str:
-    return f"`{value.replace('`', '')}`" if value else "—"
+    return f"`{value or '—'}`"
 
 
-def md_list(items: tuple[str, ...] | list[str], empty: str = "None") -> str:
-    return ", ".join(md_code(item) for item in items) if items else empty
+def join_code(values: tuple[str, ...]) -> str:
+    return ", ".join(md_code(value) for value in values) if values else "—"
 
 
-def proposed_strategies(record: RepositoryRecord) -> tuple[str, str, str, list[str]]:
-    existing = set(record.existing_required_files)
-    agents = (
-        "Extend the existing root `AGENTS.md`; preserve all repository-specific instructions and prepend the fixed entry authority."
-        if "AGENTS.md" in existing
-        else "Create root `AGENTS.md` from the canonical entry skeleton, then add repository-specific boundaries."
+def expected_diff(record: RepositoryRecord) -> tuple[str, ...]:
+    paths = list(record.missing_required_files)
+    if "AGENTS.md" in record.existing_required_files:
+        paths.append("AGENTS.md — preserve existing repository-specific instructions and add only missing parent entry rules")
+    if "STATUS.md" in record.existing_required_files:
+        paths.append("STATUS.md — reconcile rather than replace")
+    if record.workflow_files and ".github/workflows/project-control.yml" in record.missing_required_files:
+        paths.append("existing workflow integration may replace standalone workflow creation")
+    return tuple(paths)
+
+
+def validation_commands(record: RepositoryRecord) -> tuple[str, ...]:
+    repository = record.normalised_remote or record.audit.repository
+    return (
+        f"python scripts/validate_project_control.py --repository {repository}",
+        "git diff --check",
+        "git status --short",
+        "repository-native tests and CI named by its existing authority",
+        "rerun central Run-ProjectControlAudit.ps1 after merge and require the repository to leave UNMANAGED",
     )
-    status = (
-        "Reconcile the existing root `STATUS.md`; retain one singular completion authority and preserve exact current project authority."
-        if "STATUS.md" in existing
-        else "Create root `STATUS.md` only after existing status/authority records are reconciled; do not invent project state."
-    )
-    if record.workflow_files:
-        ci = (
-            "Integrate `scripts/validate_project_control.py` into the existing CI architecture; do not add a parallel workflow where the repository enforces a single-workflow rule."
+
+
+def migration_contract(record: RepositoryRecord) -> list[str]:
+    repository = record.normalised_remote or record.audit.repository
+    existing_prs = []
+    for pr in record.control_prs:
+        existing_prs.append(
+            f"#{pr.number} {pr.state}{' draft' if pr.draft else ''}{' merged' if pr.merged else ''} "
+            f"head={pr.head_sha or '—'} coverage={','.join(pr.coverage) or 'none'}"
         )
-    else:
-        ci = "Create the validator and one project-control workflow using the repository's supported runtime."
-    expected = list(record.missing_required_files)
-    if "STATUS.md" in existing:
-        expected.append("STATUS.md (bounded reconciliation only)")
-    if "AGENTS.md" in existing:
-        expected.append("AGENTS.md (bounded extension only)")
-    return agents, status, ci, sorted(set(expected), key=str.lower)
+    allowed_files = expected_diff(record)
+    forbidden = (
+        "all manuscript, source, application, hardware, asset and generated-output files",
+        "existing authority records except the exact additive/reconciliation edits named in the contract",
+        "branch history rewriting, force push, squash or rebase unless the repository's existing authority explicitly requires it",
+        "repository deletion, archiving, renaming, movement or visibility changes",
+    )
+    lines = [
+        "#### Proposed migration contract", "",
+        f"1. **Repository and local path:** {md_code(repository)} at {md_code(str(record.audit.local_path))}.",
+        f"2. **Exact inspected head:** local {md_code(record.local_head)} on branch {md_code(record.local_branch)}; remote default {md_code(record.remote_default_head)} on {md_code(record.remote_default_branch)}.",
+        f"3. **Existing authority files:** {join_code(record.authority_candidates)}.",
+        f"4. **Conflicting or missing controls:** audit: {'; '.join(record.audit.audit_reasons) or 'none'}; missing: {join_code(record.missing_required_files)}; errors: {'; '.join(record.errors) or 'none'}.",
+        "5. **Canonical `AGENTS.md` strategy:** " + (
+            "preserve the existing file and add only missing parent entry rules and fixed bootstrap"
+            if "AGENTS.md" in record.existing_required_files else
+            "add root `AGENTS.md` derived from the template, then append repository-specific instructions discovered during exact-head inspection"
+        ) + ".",
+        "6. **Singular `STATUS.md` strategy:** " + (
+            "reconcile the existing root status into the required singular completion authority without discarding its current lane"
+            if "STATUS.md" in record.existing_required_files else
+            "create root `STATUS.md` from the repository's real current authority; do not use a generic placeholder state"
+        ) + ".",
+        "7. **Validator and CI strategy:** add the repository validator; integrate it into existing CI where architecture requires one workflow, otherwise add `.github/workflows/project-control.yml`.",
+        f"8. **Allowed files:** {join_code(allowed_files)}.",
+        f"9. **Forbidden changes:** {'; '.join(forbidden)}.",
+        f"10. **Expected diff:** additions or bounded reconciliations only in the allowed control files; no target-project content diff.",
+        f"11. **Validation commands:** {'; '.join(validation_commands(record))}.",
+        "12. **Review and merge method:** one draft PR from the exact reviewed base; promote only after validator, native CI and exact diff pass; use the repository's established merge method, otherwise merge commit.",
+        "13. **Exact stop point:** stop after opening and validating the draft control PR; no merge without separate exact-head authority.",
+    ]
+    if existing_prs:
+        lines.extend(["", f"Existing control-related PR evidence: {'; '.join(existing_prs)}."])
+    return lines
 
 
 def build_register(
-    records: list[RepositoryRecord], *, audit_path: Path, audit_hash: str,
-    active_path: Path, active_hash: str
+    audit_path: Path,
+    audit_hash: str,
+    active_path: Path,
+    records: list[RepositoryRecord],
 ) -> str:
     now = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-    counts = Counter(record.migration_classification for record in records)
+    classifications = Counter(record.migration_classification for record in records)
+    batches: defaultdict[str, list[str]] = defaultdict(list)
+    for record in records:
+        batches[record.migration_classification].append(record.normalised_remote or record.audit.repository)
     lines = [
         "---",
         "standard: Recursive Project Improvement Standard v1.0",
@@ -536,150 +540,121 @@ def build_register(
         f"generated: {now}",
         f"source_audit: {audit_path}",
         f"source_audit_sha256: {audit_hash}",
-        f"active_work: {active_path}",
-        f"active_work_sha256: {active_hash}",
+        f"active_work_source: {active_path}",
         f"repository_count: {len(records)}",
-        "implementation_authorised: false",
-        "---", "", "# Existing-Repository Control Migration Register", "",
-        "## Authority", "",
-        f"- Source audit: `{audit_path}`",
-        f"- Source audit SHA-256: `{audit_hash}`",
-        f"- Active-work authority: `{active_path}`",
-        f"- Active-work SHA-256: `{active_hash}`",
-        f"- Exact repositories imported: **{len(records)}**",
-        "- This register is diagnostic. It authorises no target-repository change.", "",
-        "## Classification summary", "",
+        "target_repositories_changed: 0",
+        "---", "",
+        "# Existing-Repository Control Migration Register", "",
+        "## Authority and boundary", "",
+        f"This register imports exactly {len(records)} `UNMANAGED` findings from "
+        f"`{audit_path}` at SHA-256 `{audit_hash}`.", "",
+        "The inspection is read-only. It does not fetch, checkout, edit, stage, commit, push, branch, open a target-repository PR, move, archive or delete any target repository.", "",
+        "## Summary", "",
     ]
-    for classification in (
-        "ACTIVE", "INACTIVE", "ARCHIVED", "DUPLICATE", "EXCEPTIONAL", "READY_FOR_CONTROL_MIGRATION"
-    ):
-        lines.append(f"- **{classification}:** {counts[classification]}")
-    lines.extend(["", "## Inventory", "",
-        "| Classification | Repository | Local head | Remote default head | Local state | Existing migration vehicle |",
-        "|---|---|---|---|---|---|",
-    ])
-    for record in records:
-        vehicles = []
-        for pr in record.control_prs:
-            if pr.coverage:
-                state = "MERGED" if pr.merged else ("DRAFT" if pr.draft else pr.state.upper())
-                vehicles.append(f"PR #{pr.number} {state} `{pr.head_sha}`")
-        local_state = "DIRTY" if record.local_dirty else "CLEAN"
+    for classification, count in sorted(classifications.items()):
+        lines.append(f"- **{classification}:** {count}")
+    lines.extend(["", "## Inventory", "", "| # | Repository | Local path | Local head | Remote default head | Dirty | Classification |", "|---:|---|---|---|---|---|---|"])
+    for index, record in enumerate(records, 1):
+        repository = record.normalised_remote or record.audit.repository
         lines.append(
-            f"| {record.migration_classification} | `{record.audit.repository}` | "
-            f"{md_code(record.local_head)} | {md_code(record.remote_default_head)} | {local_state} | "
-            f"{'<br>'.join(vehicles) if vehicles else 'None detected'} |"
+            f"| {index} | {md_code(repository)} | {md_code(str(record.audit.local_path))} | "
+            f"{md_code(record.local_head)} | {md_code(record.remote_default_head)} | "
+            f"{'YES' if record.local_dirty else 'NO'} | {record.migration_classification} |"
         )
-
-    lines.extend(["", "## Repository migration records", ""])
-    for index, record in enumerate(records, start=1):
-        agents, status, ci, expected = proposed_strategies(record)
-        compare = record.comparison_status or "unavailable"
+    lines.extend(["", "## Proposed migration batches", ""])
+    batch_order = [
+        "EXISTING CONTROL PR — REVIEW FIRST",
+        "LOCAL CHECKOUT STALE AFTER CONTROL MERGE",
+        "ACTIVE — REPOSITORY-SPECIFIC MIGRATION",
+        "INACTIVE OR UNKNOWN — AUTHORITY-PRESERVING MIGRATION",
+        "INACTIVE OR UNKNOWN — STANDARD MIGRATION",
+        "BLOCKED — DIRTY WORKTREE",
+        "BLOCKED — LOCAL HEAD NOT ON REMOTE",
+        "EXCEPTION — IDENTITY CONFLICT",
+        "EXCEPTION — REMOTE UNRESOLVED",
+        "EXCEPTION — REMOTE ARCHIVED OR DISABLED",
+        "EXCEPTION — LOCAL REPOSITORY UNAVAILABLE",
+    ]
+    for classification in batch_order:
+        repositories = sorted(batches.get(classification, []), key=str.lower)
+        if repositories:
+            lines.extend([f"### {classification}", ""])
+            lines.extend(f"- {md_code(repository)}" for repository in repositories)
+            lines.append("")
+    lines.extend(["## Complete repository records", ""])
+    for index, record in enumerate(records, 1):
+        repository = record.normalised_remote or record.audit.repository
         lines.extend([
-            f"### {index:02d}. `{record.audit.repository}`", "",
-            f"- **Migration classification:** `{record.migration_classification}`",
-            f"- **Migration route:** {record.migration_route}", "",
-            "#### 1. Repository and local path", "",
-            f"- Audit identity: `{record.audit.repository}`",
-            f"- Local path: `{record.audit.local_path}`",
-            f"- Origin URL: {md_code(record.origin_url)}",
-            f"- Normalised remote: {md_code(record.normalised_remote)}", "",
-            "#### 2. Exact inspected head", "",
+            f"### {index}. {repository}", "",
+            f"- Audit identity: {md_code(record.audit.repository)}",
+            f"- Local path: {md_code(str(record.audit.local_path))}",
+            f"- Local repository exists: **{'YES' if record.local_exists else 'NO'}**",
+            f"- Git worktree: **{'YES' if record.git_repository else 'NO'}**",
+            f"- Local head: {md_code(record.local_head)}",
             f"- Local branch: {md_code(record.local_branch)}",
-            f"- Local HEAD: {md_code(record.local_head)}",
-            f"- Working tree: **{'DIRTY' if record.local_dirty else 'CLEAN'}** ({record.local_status_count} porcelain entries)",
-            f"- GitHub default branch: {md_code(record.remote_default_branch)}",
-            f"- GitHub default head: {md_code(record.remote_default_head)}",
-            f"- Local HEAD present remotely: **{'YES' if record.local_head_on_remote else 'NO'}**",
-            f"- Local/default comparison: `{compare}`; ahead `{record.ahead_by}`; behind `{record.behind_by}`", "",
-            "#### 3. Existing authority files", "",
-            f"- Authority/status candidates: {md_list(record.authority_candidates)}",
-            f"- Existing workflows: {md_list(record.workflow_files)}", "",
-            "#### 4. Conflicting or missing controls", "",
-            f"- Existing mandatory controls: {md_list(record.existing_required_files)}",
-            f"- Missing mandatory controls: {md_list(record.missing_required_files)}",
-            f"- Audit findings: {md_list(list(record.audit.audit_reasons))}",
-            f"- Reconciliation exceptions: {md_list(list(record.errors))}", "",
-            "#### 5. Proposed `AGENTS.md` strategy", "", agents, "",
-            "#### 6. Proposed singular `STATUS.md` strategy", "", status, "",
-            "#### 7. Validator and CI integration strategy", "", ci, "",
-            "#### 8. Allowed files", "",
-            "- Only the repository-specific control files named by the final exact migration contract.",
-            "- Existing authority files only where the contract specifies bounded reconciliation.",
-            "- Existing CI workflow files only where integration is required by repository architecture.", "",
-            "#### 9. Forbidden changes", "",
-            "- No source, manuscript, product, circuit, application or content change.",
-            "- No replacement or deletion of existing authority records.",
-            "- No branch, PR or implementation until this repository's migration contract is separately authorised.",
-            "- No squash or rebase assumption; merge method must be explicitly selected per repository.", "",
-            "#### 10. Expected diff", "",
-            f"- Proposed files: {md_list(expected)}",
-            "- Exact line-level diff remains to be designed from the repository's own authority.", "",
-            "#### 11. Validation commands", "",
-            f"- `python scripts/validate_project_control.py --repository {record.audit.repository}`",
-            "- repository-native test or validation suite required by existing authority",
-            "- `git diff --check`",
-            "- central project-control audit rerun after promotion", "",
-            "#### 12. Review and merge method", "",
-            "- One repository-specific draft PR from an exact inspected base.",
-            "- Exact-head review before promotion.",
-            "- Merge method must follow repository authority; no automatic squash or rebase.", "",
-            "#### 13. Exact stop point", "",
-            "Stop after the migration contract is reviewed. Do not alter the target repository without separate explicit implementation authority.", "",
-            "#### Existing migration vehicles", "",
+            f"- Local dirty: **{'YES' if record.local_dirty else 'NO'}** ({record.local_status_count} status entries)",
+            f"- Origin URL: {md_code(record.origin_url)}",
+            f"- Normalised remote: {md_code(record.normalised_remote)}",
+            f"- Remote exists: **{'YES' if record.remote_exists else 'NO'}**",
+            f"- Remote archived/disabled: **{'YES' if record.remote_archived or record.remote_disabled else 'NO'}**",
+            f"- Remote default branch/head: {md_code(record.remote_default_branch)} / {md_code(record.remote_default_head)}",
+            f"- Local head exists on remote: **{'YES' if record.local_head_on_remote else 'NO'}**",
+            f"- Default-head comparison: {md_code(record.comparison_status)}; ahead={record.ahead_by}; behind={record.behind_by}",
+            f"- Active-work evidence: **{'YES' if record.active_evidence else 'NO'}**",
+            f"- Existing mandatory files: {join_code(record.existing_required_files)}",
+            f"- Missing mandatory files: {join_code(record.missing_required_files)}",
+            f"- Authority candidates: {join_code(record.authority_candidates)}",
+            f"- Workflow files: {join_code(record.workflow_files)}",
+            f"- Migration classification: **{record.migration_classification}**",
+            f"- Migration route: {record.migration_route}",
+            f"- Diagnostic errors: {'; '.join(record.errors) or 'none'}", "",
         ])
-        if record.control_prs:
-            for pr in record.control_prs:
-                coverage = md_list(list(pr.coverage))
-                state = "MERGED" if pr.merged else ("DRAFT" if pr.draft else pr.state.upper())
-                lines.append(
-                    f"- PR #{pr.number} — **{state}** — head `{pr.head_sha}` — base `{pr.base_sha}` — "
-                    f"control coverage: {coverage} — {pr.html_url}"
-                )
-        else:
-            lines.append("- None detected in the most recently updated 50 pull requests.")
-        lines.append("")
-
+        lines.extend(migration_contract(record))
+        lines.extend(["", "---", ""])
     lines.extend([
-        "## Batch design", "",
-        "Batches must be proposed only after human review of this register. A batch may group repositories with the same migration route, but each repository retains its own exact base, contract, validation and stop point.", "",
-        "## Stop point", "",
-        "Stop before changing any target repository. The disposable proof repository remains preserved and is not part of the 19-repository migration set.", "",
+        "## Lane stop", "",
+        "All target repositories remain unchanged. Each migration requires separate repository-specific authority before implementation.", "",
     ])
     return "\n".join(lines)
 
 
 def main() -> int:
     args = parse_args()
-    entries = parse_audit(args.audit, args.expected_count)
-    active_slugs, active_hash = parse_active_work(args.active_work)
-    audit_hash = sha256_file(args.audit)
-    records = [inspect_entry(entry, active_slugs, skip_github=args.skip_github) for entry in entries]
-    classify_records(records)
-    report = build_register(
-        records,
-        audit_path=args.audit,
-        audit_hash=audit_hash,
-        active_path=args.active_work,
-        active_hash=active_hash,
-    )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(report, encoding="utf-8", newline="\n")
-    print(f"Wrote migration register: {args.output}")
-    print(f"SOURCE_AUDIT_SHA256={audit_hash}")
-    print(f"ACTIVE_WORK_SHA256={active_hash}")
-    print(f"REPOSITORIES={len(records)}")
-    for classification in (
-        "ACTIVE", "INACTIVE", "ARCHIVED", "DUPLICATE", "EXCEPTIONAL", "READY_FOR_CONTROL_MIGRATION"
-    ):
-        print(f"{classification}={sum(r.migration_classification == classification for r in records)}")
-    print("TARGET_REPOSITORIES_CHANGED=0")
-    return 0
+    try:
+        if not args.skip_github:
+            auth = run(["gh", "auth", "status"], timeout=60)
+            if auth.returncode != 0:
+                raise RegisterError(f"GitHub CLI is not authenticated: {auth.stdout.strip()}")
+        entries = parse_audit(args.audit, args.expected_count)
+        active_slugs = active_repositories(args.active_work)
+        records = [inspect_entry(entry, active_slugs, skip_github=args.skip_github) for entry in entries]
+        if len(records) != args.expected_count:
+            raise RegisterError(f"internal record count mismatch: expected {args.expected_count}, got {len(records)}")
+        before_status = {
+            record.audit.local_path: run_git(record.audit.local_path, ["status", "--porcelain=v1", "--untracked-files=all"]).stdout
+            for record in records if record.git_repository
+        }
+        register = build_register(args.audit, sha256_file(args.audit), args.active_work, records)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(register, encoding="utf-8", newline="\n")
+        changed = []
+        for record in records:
+            if not record.git_repository:
+                continue
+            after = run_git(record.audit.local_path, ["status", "--porcelain=v1", "--untracked-files=all"]).stdout
+            if before_status[record.audit.local_path] != after:
+                changed.append(str(record.audit.local_path))
+        if changed:
+            raise RegisterError("target repository worktree changed during read-only import: " + ", ".join(changed))
+        print("MIGRATION REGISTER IMPORTED")
+        print(f"Repository count: {len(records)}")
+        print(f"Output: {args.output}")
+        print("TARGET_REPOSITORIES_CHANGED=0")
+        return 0
+    except RegisterError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except RegisterError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        raise SystemExit(2)
+    raise SystemExit(main())
