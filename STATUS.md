@@ -5,7 +5,7 @@ project_slug: project-folder-checker
 project_name: Project Folder Checker
 project_type: system
 template_mode: false
-status: REVIEW
+status: AUTHORISED
 authority_files:
   - docs/authority/AUTHORITY.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION.md
@@ -25,60 +25,59 @@ Reviewed sources:
 
 ## Current lane
 
-Review and batch design for the 19 existing repositories reported as `UNMANAGED`.
+Batch 0 authority-machine reconciliation only.
 
 ## Allowed scope
 
-- preserve and review the exact register;
-- verify local and remote identities and heads;
-- correct unsafe classifications;
-- identify existing migration vehicles;
-- define one safe disposition per repository;
-- define bounded review and migration batches.
+- fast-forward the clean local `project-folder-checker` checkout from `05ae228e79cb4d591d0e984387140d08a0cdc08d` to exact remote `main` `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`;
+- use fast-forward only;
+- record `pewdiepie-archdaemon/odysseus` as an external-upstream exception in central control records;
+- rerun the central project-control audit;
+- record exact Batch 0 proof;
+- add and validate the fail-closed authority-machine runner for those actions.
 
 ## Forbidden changes
 
-- no target-repository implementation;
-- no new target migration vehicle;
-- no promotion of a target control change;
+- no target-repository change except the authorised `project-folder-checker` fast-forward;
+- no modification, fork, migration, branch, pull request, push, archive, rename or deletion for `pewdiepie-archdaemon/odysseus`;
+- no review, refresh, creation or promotion of any other target control pull request;
 - no repository removal or relocation;
 - no deletion of the disposable proof repository.
 
 ## Validation
 
-- exactly 19 records reviewed;
-- every record has one execution disposition;
-- known existing control pull requests verified directly;
-- five existing control pull requests are mergeable;
-- three existing control pull requests are conflicted;
-- one repository is already controlled remotely;
-- one repository is an external upstream;
-- target repositories changed: zero.
+- local `project-folder-checker` must begin clean on branch `main` at the authorised old or resumable new head;
+- `origin/main` must equal the authorised new head exactly;
+- the update must be a fast-forward;
+- final local head must equal the authorised new head and remain clean;
+- every other local repository HEAD must remain unchanged;
+- the external-upstream exception record must be written centrally;
+- the rerun audit must classify `armpitpete/project-folder-checker` as `CONTROLLED`;
+- the raw ownership-neutral audit may retain `pewdiepie-archdaemon/odysseus` as structurally `UNMANAGED`, while the exception record excludes it from the owned migration queue;
+- final Batch 0 result must record `OTHER_REPOSITORY_HEADS_CHANGED=0`.
 
 ## Done
 
 - Central future-project enforcement merged and proven.
 - Read-only importer completed from the exact source hashes.
-- Full 19-record register produced.
-- Complete register review recorded in `docs/authority/EXISTING_REPOSITORY_MIGRATION_REVIEW.md`.
-- `project-folder-checker` corrected from ready-to-migrate to already-controlled with a stale local checkout.
-- Ellie control pull request #108 recovered from outside the importer's 50-pull-request window.
+- Full 19-record register produced and reviewed.
 - Eight existing control pull requests identified: five mergeable and three conflicted.
-- Two clean exact-head-aligned repositories identified for eventual new control design.
-- Six bounded execution groups defined.
+- Batch 0 explicitly authorised by the owner.
+- Fail-closed, resumable Batch 0 authority-machine runner added.
+- Windows PowerShell parser validation added for the Batch 0 runner.
 
 ## To do
 
-- execute no target work without separate authority;
-- correct the local control inventory and external-upstream disposition;
-- review existing mergeable control pull requests;
-- refresh conflicted control pull requests;
-- reconcile stale or divergent local authority before new control design.
+- run the guarded Batch 0 command on the Windows authority machine;
+- preserve `PROJECT_CONTROL_EXCEPTIONS.md`;
+- preserve the rerun `PROJECT_CONTROL_AUDIT.md`;
+- preserve `EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md`;
+- stop before Batch 1 or any other target-repository change.
 
 ## Next bounded gate
 
-Authorise Batch 0 only: correct the stale local `project-folder-checker` checkout and record the external-upstream disposition for `pewdiepie-archdaemon/odysseus`, then rerun the central audit.
+Run `tools/Run-ExistingRepositoryMigrationBatch0.ps1` on the authority machine and return the complete terminal output.
 
 ## Stop point
 
-Stop before any target-repository change without separate explicit authority.
+Stop immediately after Batch 0 proof. No other target-repository change is authorised.
