@@ -2,13 +2,25 @@
 """Regression tests for the read-only existing-repository migration importer."""
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("build_existing_repository_migration_register.py")
+
+
+def load_importer_module():
+    spec = importlib.util.spec_from_file_location("migration_register_importer", SCRIPT)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load importer module: {SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def run(command: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -81,6 +93,16 @@ class MigrationRegisterTests(unittest.TestCase):
         for _, path in self.entries:
             status = run(["git", "status", "--porcelain=v1"], cwd=path)
             self.assertEqual(status.stdout, "", f"worktree changed: {path}\n{status.stdout}")
+
+    def test_external_command_output_is_decoded_as_utf8(self) -> None:
+        importer = load_importer_module()
+        completed = importer.run([
+            sys.executable,
+            "-c",
+            "import sys; sys.stdout.buffer.write('ќ migration'.encode('utf-8'))",
+        ])
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout, "ќ migration")
 
     def test_rejects_count_mismatch(self) -> None:
         completed = run(self.command(expected=18))
