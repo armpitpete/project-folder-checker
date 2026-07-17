@@ -82,6 +82,29 @@ The importer must:
 
 Both failures occurred before successful register completion. Neither authorised or made a target-repository change.
 
+## Successful authority-machine import
+
+The safe-scan importer completed successfully on 2026-07-17 and wrote:
+
+`I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`.
+
+Exact imported evidence:
+
+```text
+SOURCE_AUDIT_SHA256=386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844
+ACTIVE_WORK_SHA256=19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC
+REPOSITORIES=19
+ACTIVE=3
+INACTIVE=5
+ARCHIVED=0
+DUPLICATE=0
+EXCEPTIONAL=6
+READY_FOR_CONTROL_MIGRATION=5
+TARGET_REPOSITORIES_CHANGED=0
+```
+
+This proves that all 19 audit entries were imported, reconciled and classified without changing any target repository. The generated register remains the detailed authority for the repository names, exact heads, reconciliation evidence and individual migration contracts and must be reviewed before any migration implementation.
+
 ## Promotion rule
 
 No target repository may enter implementation until its individual migration record is complete and separately authorised.
