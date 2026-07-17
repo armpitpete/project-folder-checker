@@ -60,7 +60,8 @@ jobs:
             'tools/Run-ProjectControlAudit.ps1',
             'tools/Prove-Central-Project-Control.ps1',
             'tools/Install-Central-Project-Control.ps1',
-            'tools/Build-ExistingRepositoryMigrationRegister.ps1'
+            'tools/Build-ExistingRepositoryMigrationRegister.ps1',
+            'tools/Run-ExistingRepositoryMigrationBatch0.ps1'
           )
           foreach ($File in $Files) {
             $Tokens = $null
