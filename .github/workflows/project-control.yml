@@ -76,7 +76,7 @@ jobs:
 
       - name: Test UTF-8 subprocess decoding on Windows
         shell: pwsh
-        run: python -m unittest scripts.test_build_existing_repository_migration_register.MigrationRegisterTests.test_external_command_output_is_decoded_as_utf8
+        run: python scripts/test_build_existing_repository_migration_register.py MigrationRegisterTests.test_external_command_output_is_decoded_as_utf8 -v
 
       - name: Test repository probes through GitHub CLI
         shell: powershell
