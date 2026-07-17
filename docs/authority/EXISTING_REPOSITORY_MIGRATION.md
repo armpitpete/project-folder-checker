@@ -23,50 +23,27 @@ Convert the 19 existing unmanaged local repositories into explicitly controlled 
 
 Inventory and migration-contract design only.
 
-## Import authority
-
-The exact source files are:
-
-- `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`;
-- `I:\ORDER\MainVault\00_Control\ACTIVE_WORK.md`.
-
-The authorised read-only importer is:
-
-- `scripts/build_existing_repository_migration_register.py`;
-- PowerShell entrypoint `tools/Build-ExistingRepositoryMigrationRegister.ps1`.
-
-It must:
-
-1. verify exactly 19 `UNMANAGED` findings;
-2. hash both source authority files;
-3. read local Git heads, branches, origins and worktree state without fetching or changing refs;
-4. use read-only GitHub API requests to reconcile remote identity, default head and existing control PRs;
-5. classify every migration as `ACTIVE`, `INACTIVE`, `ARCHIVED`, `DUPLICATE`, `EXCEPTIONAL` or `READY_FOR_CONTROL_MIGRATION`;
-6. emit one complete 13-field migration record per repository;
-7. write `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`;
-8. report `TARGET_REPOSITORIES_CHANGED=0`.
-
 ## Allowed scope
 
 - import the exact repository list from `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`;
 - verify each local repository path and corresponding GitHub remote;
 - identify existing authority, status, agent and workflow files;
-- detect existing open or merged project-control migration vehicles;
 - classify each repository as active, inactive, archived, duplicate, exceptional or ready for control migration;
 - define one bounded migration contract per repository;
 - group migrations into reviewable batches without implementing them;
-- record conflicts requiring repository-specific decisions.
+- record conflicts requiring repository-specific decisions;
+- use error-tolerant, read-only filesystem traversal that prunes generated caches and records inaccessible non-cache paths without aborting the complete register.
 
 ## Forbidden changes
 
 - no edits inside any of the 19 target repositories;
-- no `git fetch`, pull, checkout, reset, add, commit or push in a target repository;
 - no creation of target-repository branches or pull requests;
 - no replacement of existing authority records;
 - no migration by bulk copy without repository-specific inspection;
 - no deletion, archiving, renaming or relocation of repositories;
 - no deletion of the disposable proof repository;
-- no claim that any unmanaged repository is controlled before its own validator passes on an exact reviewed head.
+- no claim that any unmanaged repository is controlled before its own validator passes on an exact reviewed head;
+- no fetch, checkout, reset, pull, clean or filesystem-permission change during diagnostic import.
 
 ## Required migration record
 
@@ -85,6 +62,25 @@ Each repository must receive a proposed record containing:
 11. validation commands;
 12. review and merge method;
 13. exact stop point.
+
+## Read-only importer contract
+
+The importer must:
+
+- read only the source audit, active-work record, local Git metadata, repository files and GitHub GET endpoints;
+- decode external command output explicitly as UTF-8 with replacement handling;
+- prune `.git`, virtual environments, dependency trees, build products, generated caches, `fastembed_cache`, and `models--*` directories before file access;
+- use error-tolerant traversal that does not follow links;
+- record inaccessible non-cache paths as diagnostics instead of terminating the whole import;
+- write only `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`;
+- compare every target worktree status before and after import and require zero changes.
+
+## Observed authority-machine failures
+
+1. Windows Python 3.13 initially decoded GitHub CLI output through CP1252; a UTF-8 byte sequence caused the subprocess reader thread to fail. External command decoding is now explicitly UTF-8 with replacement handling.
+2. `Path.rglob()` then attempted to stat an inaccessible generated model-cache file inside `odysseus\data\fastembed_cache`, raising WinError 1920. The official PowerShell entrypoint now routes through the safe scanner described above.
+
+Both failures occurred before successful register completion. Neither authorised or made a target-repository change.
 
 ## Promotion rule
 
