@@ -67,15 +67,11 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $FakeBin = Join-Path $env:RUNNER_TEMP 'fake-gh'
-          New-Item -ItemType Directory -Force -Path $FakeBin | Out-Null
-          @'
-          @echo off
-          echo GraphQL: Could not resolve to a Repository 1>&2
-          exit /b 1
-          '@ | Set-Content -Path (Join-Path $FakeBin 'gh.cmd') -Encoding Ascii
-          $env:PATH = "$FakeBin;$env:PATH"
           . .\tools\New-OrderProject.ps1 -LibraryOnly
+          function global:gh {
+            Write-Error 'GraphQL: Could not resolve to a Repository' -ErrorAction Continue
+            $global:LASTEXITCODE = 1
+          }
           $Exists = Test-RemoteRepositoryExists -Repository 'armpitpete/definitely-absent-project-control-probe'
           if ($Exists) {
             throw 'Absent repository probe incorrectly returned true.'
