@@ -6,17 +6,18 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$Files = @(
-    'New-OrderProject.ps1',
-    'Run-ProjectControlAudit.ps1',
-    'Prove-Central-Project-Control.ps1',
-    'audit_project_controls.py'
-)
+$RepositoryRoot = Split-Path -Parent $PSScriptRoot
+$Sources = [ordered]@{
+    'New-OrderProject.ps1' = Join-Path $PSScriptRoot 'New-OrderProject.ps1'
+    'Run-ProjectControlAudit.ps1' = Join-Path $PSScriptRoot 'Run-ProjectControlAudit.ps1'
+    'Prove-Central-Project-Control.ps1' = Join-Path $PSScriptRoot 'Prove-Central-Project-Control.ps1'
+    'audit_project_controls.py' = Join-Path $RepositoryRoot 'scripts\audit_project_controls.py'
+}
 
 New-Item -ItemType Directory -Force -Path $TargetDirectory | Out-Null
 
-foreach ($File in $Files) {
-    $Source = Join-Path $PSScriptRoot $File
+foreach ($File in $Sources.Keys) {
+    $Source = $Sources[$File]
     $Target = Join-Path $TargetDirectory $File
     if (-not (Test-Path $Source)) {
         throw "Required installation source is missing: $Source"
