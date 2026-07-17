@@ -43,6 +43,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
       - name: Parse PowerShell tools
         shell: pwsh
         run: |
@@ -68,6 +73,10 @@ jobs:
             }
             Write-Host "PASS: $File"
           }
+
+      - name: Test UTF-8 subprocess decoding on Windows
+        shell: pwsh
+        run: python -m unittest scripts.test_build_existing_repository_migration_register.MigrationRegisterTests.test_external_command_output_is_decoded_as_utf8
 
       - name: Test repository probes through GitHub CLI
         shell: powershell
