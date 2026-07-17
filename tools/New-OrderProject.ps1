@@ -80,6 +80,28 @@ function Invoke-Python {
     Invoke-Checked -Command $Python.Command -Arguments $AllArguments -FailureMessage $FailureMessage
 }
 
+function Resolve-RemoteRepositoryProbe {
+    param(
+        [Parameter(Mandatory = $true)][int]$ExitCode,
+        [AllowEmptyString()][string]$Output,
+        [Parameter(Mandatory = $true)][string]$Repository
+    )
+
+    if ($ExitCode -eq 0) {
+        return $true
+    }
+
+    if ($Output -match 'Could not resolve to a Repository|HTTP 404|Not Found') {
+        return $false
+    }
+
+    $Diagnostic = $Output.Trim()
+    throw (
+        "Could not determine whether remote repository exists: $Repository" +
+        $(if ($Diagnostic) { "`n$Diagnostic" } else { '' })
+    )
+}
+
 function Test-RemoteRepositoryExists {
     param(
         [Parameter(Mandatory = $true)]
@@ -99,19 +121,10 @@ function Test-RemoteRepositoryExists {
         $ErrorActionPreference = $PreviousPreference
     }
 
-    if ($ProbeExitCode -eq 0) {
-        return $true
-    }
-
-    if ($ProbeOutput -match 'Could not resolve to a Repository|HTTP 404|Not Found') {
-        return $false
-    }
-
-    $Diagnostic = $ProbeOutput.Trim()
-    throw (
-        "Could not determine whether remote repository exists: $Repository" +
-        $(if ($Diagnostic) { "`n$Diagnostic" } else { '' })
-    )
+    return Resolve-RemoteRepositoryProbe `
+        -ExitCode $ProbeExitCode `
+        -Output $ProbeOutput `
+        -Repository $Repository
 }
 
 if ($LibraryOnly) {
