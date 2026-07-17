@@ -36,6 +36,7 @@ jobs:
           python -m py_compile scripts/test_audit_project_controls.py
           python -m py_compile scripts/build_existing_repository_migration_register.py
           python -m py_compile scripts/test_build_existing_repository_migration_register.py
+          python -m py_compile scripts/test_windows_utf8_subprocess.py
 
   parse-powershell:
     runs-on: windows-latest
@@ -76,7 +77,7 @@ jobs:
 
       - name: Test UTF-8 subprocess decoding on Windows
         shell: pwsh
-        run: python scripts/test_build_existing_repository_migration_register.py MigrationRegisterTests.test_external_command_output_is_decoded_as_utf8 -v
+        run: python scripts/test_windows_utf8_subprocess.py
 
       - name: Test repository probes through GitHub CLI
         shell: powershell
