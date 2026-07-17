@@ -63,17 +63,40 @@ jobs:
             Write-Host "PASS: $File"
           }
 
-      - name: Test absent repository probe in Windows PowerShell
+      - name: Test repository probe interpretation in Windows PowerShell
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           . .\tools\New-OrderProject.ps1 -LibraryOnly
-          function global:gh {
-            Write-Error 'GraphQL: Could not resolve to a Repository' -ErrorAction Continue
-            $global:LASTEXITCODE = 1
-          }
-          $Exists = Test-RemoteRepositoryExists -Repository 'armpitpete/definitely-absent-project-control-probe'
-          if ($Exists) {
+
+          $Absent = Resolve-RemoteRepositoryProbe `
+            -ExitCode 1 `
+            -Output 'GraphQL: Could not resolve to a Repository' `
+            -Repository 'armpitpete/definitely-absent-project-control-probe'
+          if ($Absent) {
             throw 'Absent repository probe incorrectly returned true.'
           }
-          Write-Host 'PASS: absent repository is a non-terminating false result'
+
+          $Present = Resolve-RemoteRepositoryProbe `
+            -ExitCode 0 `
+            -Output 'armpitpete/existing-repository' `
+            -Repository 'armpitpete/existing-repository'
+          if (-not $Present) {
+            throw 'Present repository probe incorrectly returned false.'
+          }
+
+          $UnexpectedFailureCaught = $false
+          try {
+            Resolve-RemoteRepositoryProbe `
+              -ExitCode 1 `
+              -Output 'authentication failed' `
+              -Repository 'armpitpete/unknown-repository' | Out-Null
+          }
+          catch {
+            $UnexpectedFailureCaught = $true
+          }
+          if (-not $UnexpectedFailureCaught) {
+            throw 'Unexpected probe failures must remain blocking.'
+          }
+
+          Write-Host 'PASS: repository probe interpretation is deterministic'
