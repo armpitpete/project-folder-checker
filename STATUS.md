@@ -5,10 +5,11 @@ project_slug: project-folder-checker
 project_name: Project Folder Checker
 project_type: system
 template_mode: false
-status: DIAGNOSTIC
+status: REVIEW
 authority_files:
   - docs/authority/AUTHORITY.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION.md
+  - docs/authority/EXISTING_REPOSITORY_MIGRATION_REVIEW.md
 ---
 
 # Project Status
@@ -17,66 +18,67 @@ authority_files:
 
 `main` at exact merge commit `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`, plus the exact current migration-lane branch head.
 
+Reviewed sources:
+
+- audit SHA-256 `386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844`;
+- `ACTIVE_WORK.md` SHA-256 `19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC`.
+
 ## Current lane
 
-Existing-repository control migration for the 19 repositories classified `UNMANAGED` by the proven central audit.
+Review and batch design for the 19 existing repositories reported as `UNMANAGED`.
 
 ## Allowed scope
 
-- import and preserve the exact audit inventory;
-- reconcile local repository paths with GitHub remotes;
-- inspect existing authority and workflow structures;
-- classify migration complexity and exceptions;
-- design one exact bounded migration contract per repository;
-- define reviewable migration batches;
-- add read-only diagnostic import tooling, tests, CI and documentation for this lane.
+- preserve and review the exact register;
+- verify local and remote identities and heads;
+- correct unsafe classifications;
+- identify existing migration vehicles;
+- define one safe disposition per repository;
+- define bounded review and migration batches.
 
 ## Forbidden changes
 
-- editing any of the 19 target repositories;
-- opening target-repository branches or pull requests;
-- replacing or weakening existing project authority;
-- bulk-copy migration without repository-specific inspection;
-- running `git fetch`, checkout, reset, pull, add, commit or push in a target repository;
-- deleting, moving, renaming or archiving repositories;
-- deleting the disposable proof repository;
-- beginning implementation before separate authority.
+- no target-repository implementation;
+- no new target migration vehicle;
+- no promotion of a target control change;
+- no repository removal or relocation;
+- no deletion of the disposable proof repository.
 
 ## Validation
 
-- project-control validator passes in this repository;
-- the migration authority names the proven audit counts;
-- the importer rejects any inventory count other than exactly 19;
-- every inventory entry resolves to one local path and records one exact local head;
-- GitHub reconciliation uses read-only API requests and does not update local refs;
-- all 19 unmanaged repositories receive one migration classification and one complete 13-field contract;
-- fixture proof confirms no target worktree changes;
-- repository diff remains limited to migration authority, importer, tests, wrapper and CI.
+- exactly 19 records reviewed;
+- every record has one execution disposition;
+- known existing control pull requests verified directly;
+- five existing control pull requests are mergeable;
+- three existing control pull requests are conflicted;
+- one repository is already controlled remotely;
+- one repository is an external upstream;
+- target repositories changed: zero.
 
 ## Done
 
-- Central future-project enforcement merged to `main` using merge commit `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`.
-- Mandatory project creation from `armpitpete/project-template` proven end to end.
-- Disposable proof repository retained at head `0ce94044cbb2cee8dd186968eb6cb2329924ca9c`.
-- Central audit proved `UNMANAGED=19` and `BOOTSTRAP=1`.
-- Separate migration authority opened without changing any target repository.
-- Read-only migration importer implemented.
-- Exact 19-entry fixture import passed.
-- Count-mismatch rejection passed.
-- Fixture worktree preservation passed for all 19 repositories.
+- Central future-project enforcement merged and proven.
+- Read-only importer completed from the exact source hashes.
+- Full 19-record register produced.
+- Complete register review recorded in `docs/authority/EXISTING_REPOSITORY_MIGRATION_REVIEW.md`.
+- `project-folder-checker` corrected from ready-to-migrate to already-controlled with a stale local checkout.
+- Ellie control pull request #108 recovered from outside the importer's 50-pull-request window.
+- Eight existing control pull requests identified: five mergeable and three conflicted.
+- Two clean exact-head-aligned repositories identified for eventual new control design.
+- Six bounded execution groups defined.
 
 ## To do
 
-- Run the importer against `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md` and `ACTIVE_WORK.md` on the authority machine.
-- Preserve the generated register at `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`.
-- Import the generated register into this diagnostic lane.
-- Review the 19 classifications, exact heads, existing migration vehicles and proposed routes.
-- Propose bounded migration batches for separate authorisation.
+- execute no target work without separate authority;
+- correct the local control inventory and external-upstream disposition;
+- review existing mergeable control pull requests;
+- refresh conflicted control pull requests;
+- reconcile stale or divergent local authority before new control design.
 
 ## Next bounded gate
 
-Run the read-only importer on the Windows authority machine, then import the complete generated register without modifying any target repository.
+Authorise Batch 0 only: correct the stale local `project-folder-checker` checkout and record the external-upstream disposition for `pewdiepie-archdaemon/odysseus`, then rerun the central audit.
 
 ## Stop point
 
-Stop before making any file change, branch or pull request in a target repository.
+Stop before any target-repository change without separate explicit authority.
