@@ -21,29 +21,32 @@ Convert the 19 existing unmanaged local repositories into explicitly controlled 
 
 ## Current phase
 
-Inventory and migration-contract design only.
+Batch 0 authority-machine reconciliation only.
 
 ## Allowed scope
 
-- import the exact repository list from `I:\ORDER\MainVault\00_Control\PROJECT_CONTROL_AUDIT.md`;
+- preserve and review the exact imported register;
 - verify each local repository path and corresponding GitHub remote;
 - identify existing authority, status, agent and workflow files;
-- classify each repository as active, inactive, archived, duplicate, exceptional or ready for control migration;
+- classify migration complexity and exceptions;
 - define one bounded migration contract per repository;
 - group migrations into reviewable batches without implementing them;
-- record conflicts requiring repository-specific decisions;
-- use error-tolerant, read-only filesystem traversal that prunes generated caches and records inaccessible non-cache paths without aborting the complete register.
+- use error-tolerant, read-only filesystem traversal that prunes generated caches and records inaccessible non-cache paths without aborting the complete register;
+- for Batch 0 only, fast-forward the clean local `project-folder-checker` checkout from exact `05ae228e79cb4d591d0e984387140d08a0cdc08d` to exact remote `main` `25cab54a0dea61d9a5e36041c2d6577fb8f2e614` using fast-forward only;
+- record `pewdiepie-archdaemon/odysseus` as an external-upstream exception in central control records;
+- rerun the central project-control audit and write the exact Batch 0 result record.
 
 ## Forbidden changes
 
-- no edits inside any of the 19 target repositories;
-- no creation of target-repository branches or pull requests;
+- no edit inside any target repository except the exact authorised `project-folder-checker` fast-forward;
+- no creation, update or promotion of any other target-repository branch or pull request;
 - no replacement of existing authority records;
 - no migration by bulk copy without repository-specific inspection;
 - no deletion, archiving, renaming or relocation of repositories;
 - no deletion of the disposable proof repository;
 - no claim that any unmanaged repository is controlled before its own validator passes on an exact reviewed head;
-- no fetch, checkout, reset, pull, clean or filesystem-permission change during diagnostic import.
+- no modification, fork, migration, branch, pull request, push, archive, rename or deletion for `pewdiepie-archdaemon/odysseus`;
+- no Batch 1 or later action without separate authority.
 
 ## Required migration record
 
@@ -75,6 +78,25 @@ The importer must:
 - write only `I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`;
 - compare every target worktree status before and after import and require zero changes.
 
+## Batch 0 execution contract
+
+The guarded runner must:
+
+- require local `project-folder-checker` branch `main` and a clean worktree;
+- accept only the exact authorised old head or resumable exact new head;
+- fetch `origin/main` without tags and require it to equal the exact authorised new head;
+- prove the relationship is fast-forward-only;
+- apply `git merge --ff-only` when still at the old head;
+- require the final head and clean worktree exactly;
+- snapshot all direct local repository HEADs and require every other HEAD to remain unchanged;
+- preserve the imported register and verify its source-audit hash;
+- write `PROJECT_CONTROL_EXCEPTIONS.md` for the external-upstream exception;
+- rerun `PROJECT_CONTROL_AUDIT.md`;
+- require `project-folder-checker` to classify as `CONTROLLED`;
+- retain the raw structural audit result for `odysseus` while excluding it from the owned migration queue through the exception record;
+- write `EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md`;
+- print `OTHER_REPOSITORY_HEADS_CHANGED=0` and stop.
+
 ## Observed authority-machine failures
 
 1. Windows Python 3.13 initially decoded GitHub CLI output through CP1252; a UTF-8 byte sequence caused the subprocess reader thread to fail. External command decoding is now explicitly UTF-8 with replacement handling.
@@ -82,37 +104,14 @@ The importer must:
 
 Both failures occurred before successful register completion. Neither authorised or made a target-repository change.
 
-## Successful authority-machine import
-
-The safe-scan importer completed successfully on 2026-07-17 and wrote:
-
-`I:\ORDER\MainVault\00_Control\EXISTING_REPOSITORY_MIGRATION_REGISTER.md`.
-
-Exact imported evidence:
-
-```text
-SOURCE_AUDIT_SHA256=386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844
-ACTIVE_WORK_SHA256=19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC
-REPOSITORIES=19
-ACTIVE=3
-INACTIVE=5
-ARCHIVED=0
-DUPLICATE=0
-EXCEPTIONAL=6
-READY_FOR_CONTROL_MIGRATION=5
-TARGET_REPOSITORIES_CHANGED=0
-```
-
-This proves that all 19 audit entries were imported, reconciled and classified without changing any target repository. The generated register remains the detailed authority for the repository names, exact heads, reconciliation evidence and individual migration contracts and must be reviewed before any migration implementation.
-
 ## Promotion rule
 
 No target repository may enter implementation until its individual migration record is complete and separately authorised.
 
 ## Lane completion condition
 
-This diagnostic lane is complete only when all 19 repositories are named, reconciled against their GitHub remotes, assigned a migration classification and given an exact implementation route or an explicit exception record.
+This diagnostic lane is complete only when all 19 repositories are named, reconciled against their GitHub remotes, assigned a reviewed execution disposition and given an exact implementation route or explicit exception record.
 
 ## Stop point
 
-Stop before changing any target repository.
+Batch 0 only is authorised. Stop immediately after its exact proof record and central audit rerun. No other target-repository change is authorised.
