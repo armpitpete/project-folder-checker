@@ -31,7 +31,7 @@ if ($LASTEXITCODE -ne 0) {
     throw 'GitHub CLI is not authenticated.'
 }
 
-$Script = Join-Path $PSScriptRoot '..\scripts\build_existing_repository_migration_register.py'
+$Script = Join-Path $PSScriptRoot '..\scripts\run_existing_repository_migration_register_safe.py'
 $Script = (Resolve-Path $Script).Path
 $Python = Resolve-Python
 $Arguments = @($Python.Prefix) + @(
