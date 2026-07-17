@@ -99,10 +99,10 @@ class MigrationRegisterTests(unittest.TestCase):
         completed = importer.run([
             sys.executable,
             "-c",
-            "import sys; sys.stdout.buffer.write('ќ migration'.encode('utf-8'))",
+            "import sys; sys.stdout.buffer.write(bytes([0xD1, 0x9D]) + b' migration')",
         ])
         self.assertEqual(completed.returncode, 0)
-        self.assertEqual(completed.stdout, "ќ migration")
+        self.assertEqual(completed.stdout, "\u045d migration")
 
     def test_rejects_count_mismatch(self) -> None:
         completed = run(self.command(expected=18))
