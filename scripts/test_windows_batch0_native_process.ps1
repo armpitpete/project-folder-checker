@@ -1,12 +1,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-. .\tools\Run-ExistingRepositoryMigrationBatch0.ps1 -LibraryOnly
+. .\tools\Run-ExistingRepositoryMigrationBatch0Safe.ps1 -LibraryOnly
 
 $PowerShellExecutable = (Get-Process -Id $PID).Path
 $WorkingDirectory = (Get-Location).Path
 
-$Success = Invoke-NativeProcess `
+$Success = Invoke-Batch0NativeProcess `
     -FilePath $PowerShellExecutable `
     -Arguments @(
         '-NoProfile',
@@ -25,7 +25,7 @@ if ($Success.StdErr.Trim() -ne 'stderr-success') {
     throw "Expected captured stderr-success, found: $($Success.StdErr)"
 }
 
-$Failure = Invoke-NativeProcess `
+$Failure = Invoke-Batch0NativeProcess `
     -FilePath $PowerShellExecutable `
     -Arguments @(
         '-NoProfile',
