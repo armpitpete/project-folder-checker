@@ -18,9 +18,12 @@ authority_files:
 
 ## Current authority
 
-`main` at exact merge commit `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`, plus the exact current migration-lane branch head.
+- `main` at exact merge commit `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`.
+- Migration lane: project-folder-checker PR #12 on `agent/existing-repository-control-migration`; resolve and verify its exact current head before acting.
+- Canon Garden control candidate: PR #202 at exact head `d64a82ddecc29d8685396f6c431418b9b055cf31`, based on `main` at `4768a2dd3c1d7216b3fc9889d917cb1cf55fa167`.
+- Canon Garden product authority: PR #201 at exact head `4346bfe11da0fa96ec89a5b79826997c25595035`.
 
-Reviewed sources:
+Reviewed sources remain:
 
 - source audit SHA-256 `386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844`;
 - `ACTIVE_WORK.md` SHA-256 `19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC`;
@@ -29,64 +32,75 @@ Reviewed sources:
 
 ## Current lane
 
-Batch 1 review is complete and closed. Five independent repair contracts are prepared; no target repair is authorised.
+B1-CG central-audit reconciliation is implemented on PR #12. The active gate is independent exact-head promotion review of that single reconciliation commit.
 
 ## Allowed scope
 
-- preserve the Batch 0 result and proof hashes;
-- preserve the exact Batch 1 metadata, diffs, CI evidence and repair contracts;
-- validate this migration-lane branch;
-- state the next separately bounded repository-specific repair gate;
-- maintain the prohibition on target changes until separate authority.
+- review the exact PR #12 reconciliation head and its single parent;
+- verify the starting-head-to-current-head diff is exactly the five authorised files;
+- verify the unchanged default five-file profile;
+- verify the centrally owned, verified-identity Canon Garden profile and all positive and negative tests;
+- verify complete GitHub Actions results;
+- preserve Canon Garden PRs #201 and #202 unchanged;
+- prepare a separate exact-head promotion or repair decision.
 
 ## Forbidden changes
 
-- no update, refresh, ready transition, closure or merge of any Batch 1 target pull request;
-- no target-repository file, branch, workflow or pull-request change;
-- no Batch 2 or later migration work;
-- no modification, fork, migration, branch, pull request, push, archive, rename or deletion for `pewdiepie-archdaemon/odysseus`;
-- no repository removal or relocation;
-- no deletion of the disposable proof repository;
-- no merge of PR #12 without separate exact-head and merge-method authority.
+- no modification of Canon Garden PR #201 or PR #202;
+- no target-repository self-declared, folder-name, wildcard or filename-fallback profile;
+- no weakening of the default five-file profile;
+- no project-template creation-path or classification change;
+- no ready transition or merge of project-folder-checker PR #12;
+- no merge of Canon Garden PR #202;
+- no other Batch 1 or Batch 2 work;
+- no repository deletion, relocation or disposable-proof deletion.
 
 ## Validation
 
-- every Batch 1 PR was reverified open, draft, unmerged and mergeable at its recorded exact head;
-- every reported base and head comparison is strictly ahead with zero commits behind;
-- complete patches show control-only changes and no product, manuscript, hardware, collector or application leakage;
-- exact-head GitHub Actions passed for all five PRs;
-- all five PRs fail the current central migration completeness test because one or more mandatory central-audit files or structures are absent;
-- one repository-specific repair contract is recorded for each target;
-- target pull requests changed during Batch 1 review: zero.
+Required reconciliation validation:
+
+```text
+python scripts/validate_project_control.py --repository armpitpete/project-folder-checker
+python scripts/test_audit_project_controls.py
+python -m py_compile scripts/audit_project_controls.py scripts/test_audit_project_controls.py
+```
+
+The profile suite must preserve all five classifications and prove:
+
+- exact verified Canon Garden identity is `CONTROLLED`;
+- missing guardrail is `UNMANAGED`;
+- competing workflow is `DRIFTED`;
+- missing, altered or duplicate exact validator commands are `DRIFTED`;
+- non-Canon, spoofed-folder, missing-remote, unparseable-remote and self-declared cases cannot activate the profile;
+- repository validator execution preserves a clean worktree;
+- a mutating validator is detected as `DRIFTED`.
+
+The complete PR #12 GitHub Actions suite must pass at the exact reconciliation head.
 
 ## Done
 
 - Central future-project enforcement merged and proven.
-- Read-only importer completed from the exact source hashes.
-- Full 19-record register produced and reviewed.
-- Batch 0 completed: local `project-folder-checker/main` synchronised and Odysseus excluded as an external upstream.
-- Central audit rerun with `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`.
-- Batch 1 reviewed `commentate-this` PR #3 at `a3d8c1c1cfef46d3422f32b2d0fead9b8deb5e5a`.
-- Batch 1 reviewed `canon-garden` PR #202 at `dba89b9df57828c84c89d57e8d38261fe5ca6027`.
-- Batch 1 reviewed `lirava` PR #82 at `019031b61edac5affacaa34d8f71b8c48189c262`.
-- Batch 1 reviewed `merrin-voice-01` PR #50 at `9982abf4112f220a74356ca615feacdcdca77937`.
-- Batch 1 reviewed `story-evidence-collector` PR #146 at `6b9bba1b3a85da360b338a93547f29a68259792f`.
-- Every Batch 1 disposition is `REPAIR REQUIRED`; none is promotion-ready.
-- Five exact repair contracts preserved at `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_1_REVIEW.md`.
+- Batch 0 completed with central audit `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`.
+- Batch 1 review produced five bounded repair contracts.
+- B1-CT was repaired, reviewed, merge-committed and locally verified; Commentate This is `CONTROLLED`.
+- Canon Garden PR #202 was repaired and reconciled to current `main`; exact-head CI run `29643962608` passed.
+- The central auditor now retains the unchanged default profile and defines one centrally owned Canon Garden integrated-workflow profile.
+- Sixteen profile tests cover the existing classifications, positive profile selection, negative profile cases, spoof prevention and read-only validation.
+- Canon Garden PRs #201 and #202 remained unchanged during the central-audit reconciliation.
 
 ## To do
 
-- obtain separate explicit authority for exactly one repository-specific repair contract;
-- reverify the selected target PR has not moved before any repair;
-- apply only the selected contract's exact allowed-file scope;
-- rerun repository-specific control and existing product CI;
-- return a new exact head for independent review;
-- stop before promotion unless separately authorised.
+- perform independent exact-head promotion review of the PR #12 reconciliation commit;
+- if approved, separately authorise PR #12 readiness and merge method;
+- after merge, install the central auditor into MainVault and rerun the complete local audit;
+- return Canon Garden PR #202 for exact-head promotion review under the installed profile;
+- separately authorise any Canon Garden ready transition or merge;
+- continue no other Batch 1 lane until the B1-CG control sequence reaches its authorised stop.
 
 ## Next bounded gate
 
-Select and explicitly authorise exactly one of `B1-CT`, `B1-CG`, `B1-LI`, `B1-MV` or `B1-SEC` from `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_1_REVIEW.md`. Reverify the selected existing PR head before applying its repair. No other target may change.
+Review the exact current PR #12 head, confirm its sole parent is `a75c06728e1730e4afd4bb4dc41e1f7197b4e6a1`, confirm the reconciliation diff is exactly the five authorised paths, verify complete CI, and issue either an exact-head promotion contract or one bounded repair contract.
 
 ## Stop point
 
-Batch 1 review is complete. Stop before any target pull-request update, repair, ready transition or merge.
+Stop before marking PR #12 ready, merging PR #12, modifying or merging Canon Garden PR #202, modifying PR #201, installing unmerged central tooling, or beginning another Batch 1 lane.

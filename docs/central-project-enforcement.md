@@ -55,6 +55,57 @@ Every local Git repository beneath `I:\ORDER\GitHub` is classified as exactly on
 
 The audit is report-only. It does not edit, repair, move or delete repository files.
 
+## Centrally owned audit profiles
+
+The default profile remains unchanged and applies to every repository unless an exact verified remote identity is present in the centrally owned profile map.
+
+### Default profile
+
+Required files:
+
+1. `AGENTS.md`;
+2. `STATUS.md`;
+3. `docs/authority/AUTHORITY.md`;
+4. `scripts/validate_project_control.py`;
+5. `.github/workflows/project-control.yml`.
+
+The default workflow must invoke `validate_project_control.py`. No alternative workflow filename, wildcard lookup or repository-declared exception is accepted.
+
+### Canon Garden integrated profile
+
+Exactly one non-default profile is approved:
+
+```text
+repository identity: armpitpete/canon-garden
+workflow: .github/workflows/validate-entries.yml
+additional required file: scripts/ci-guardrail-check.js
+exact workflow set: validate-entries.yml only
+exact validator command:
+python3 scripts/validate_project_control.py --repository armpitpete/canon-garden
+```
+
+The complete required file set is:
+
+1. `AGENTS.md`;
+2. `STATUS.md`;
+3. `docs/authority/AUTHORITY.md`;
+4. `scripts/validate_project_control.py`;
+5. `.github/workflows/validate-entries.yml`;
+6. `scripts/ci-guardrail-check.js`.
+
+A missing required file is `UNMANAGED`. An additional workflow, missing validator command, altered repository argument or duplicate exact command is `DRIFTED`.
+
+### Profile selection authority
+
+Non-default profile selection is:
+
+- centrally owned;
+- keyed only by an exact repository identity normalised from the configured GitHub `origin` remote;
+- unavailable when the remote is missing or cannot be normalised;
+- unaffected by folder name, `STATUS.md`, repository content, command-line owner input or any target-repository declaration.
+
+A repository cannot select, request or imitate a non-default profile. Repositories without an exact verified profile identity continue under the unchanged default profile.
+
 ## Audit output
 
 ```text

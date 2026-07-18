@@ -24,7 +24,7 @@ VALID_STATUSES = {
     "VALIDATING", "REVIEW", "READY", "AUTHORITATIVE", "BLOCKED",
     "SUPERSEDED", "CLOSED", "BOOTSTRAP",
 }
-REQUIRED_FILES = (
+DEFAULT_REQUIRED_FILES = (
     "AGENTS.md",
     "STATUS.md",
     "docs/authority/AUTHORITY.md",
@@ -45,6 +45,42 @@ SEVERITY_ORDER = {
     "DRIFTED": 2,
     "BOOTSTRAP": 3,
     "CONTROLLED": 4,
+}
+
+
+@dataclasses.dataclass(frozen=True)
+class ControlProfile:
+    required_files: tuple[str, ...]
+    workflow_path: str
+    exact_workflow_files: tuple[str, ...] | None = None
+    exact_validator_command: str | None = None
+
+
+DEFAULT_PROFILE = ControlProfile(
+    required_files=DEFAULT_REQUIRED_FILES,
+    workflow_path=".github/workflows/project-control.yml",
+)
+
+CANON_GARDEN_PROFILE = ControlProfile(
+    required_files=(
+        "AGENTS.md",
+        "STATUS.md",
+        "docs/authority/AUTHORITY.md",
+        "scripts/validate_project_control.py",
+        ".github/workflows/validate-entries.yml",
+        "scripts/ci-guardrail-check.js",
+    ),
+    workflow_path=".github/workflows/validate-entries.yml",
+    exact_workflow_files=("validate-entries.yml",),
+    exact_validator_command=(
+        "python3 scripts/validate_project_control.py "
+        "--repository armpitpete/canon-garden"
+    ),
+)
+
+# Profiles are centrally owned and selected only from a verified normalized remote.
+REPOSITORY_PROFILES = {
+    "armpitpete/canon-garden": CANON_GARDEN_PROFILE,
 }
 
 
@@ -70,7 +106,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run(command: list[str], *, cwd: Path, timeout: int = 60) -> subprocess.CompletedProcess[str]:
+def run(
+    command: list[str], *, cwd: Path, timeout: int = 60
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         cwd=cwd,
@@ -113,13 +151,16 @@ def markdown_files(root: Path) -> list[Path]:
     ]
 
 
-def repository_identity(repo: Path, owner: str) -> tuple[str, list[str]]:
+def repository_identity(repo: Path, owner: str) -> tuple[str, list[str], bool]:
+    """Return repository identity, notes and whether it came from a verified remote."""
+
     notes: list[str] = []
     completed = run(["git", "config", "--get", "remote.origin.url"], cwd=repo)
     remote = completed.stdout.strip()
     if completed.returncode != 0 or not remote:
         notes.append("origin remote is missing; identity inferred from folder name")
-        return f"{owner}/{repo.name}", notes
+        return f"{owner}/{repo.name}", notes, False
+
     patterns = (
         r"github\.com[:/](?P<slug>[^/\s]+/[^/\s]+?)(?:\.git)?$",
         r"api\.github\.com/repos/(?P<slug>[^/\s]+/[^/\s]+)$",
@@ -127,9 +168,27 @@ def repository_identity(repo: Path, owner: str) -> tuple[str, list[str]]:
     for pattern in patterns:
         match = re.search(pattern, remote)
         if match:
-            return match.group("slug"), notes
+            return match.group("slug"), notes, True
+
     notes.append(f"origin remote could not be normalised: {remote}")
-    return f"{owner}/{repo.name}", notes
+    return f"{owner}/{repo.name}", notes, False
+
+
+def resolve_profile(repository: str, *, identity_verified: bool) -> ControlProfile:
+    if identity_verified:
+        return REPOSITORY_PROFILES.get(repository, DEFAULT_PROFILE)
+    return DEFAULT_PROFILE
+
+
+def workflow_files(repo: Path) -> tuple[str, ...]:
+    directory = repo / ".github/workflows"
+    if not directory.is_dir():
+        return ()
+    return tuple(sorted(
+        path.name
+        for path in directory.iterdir()
+        if path.is_file() and path.suffix in {".yml", ".yaml"}
+    ))
 
 
 def git_status(repo: Path) -> str:
@@ -153,20 +212,25 @@ def completion_claims(repo: Path) -> list[str]:
     return sorted(claims)
 
 
-def static_checks(repo: Path, repository: str) -> tuple[list[str], dict[str, str]]:
+def static_checks(
+    repo: Path, repository: str, profile: ControlProfile
+) -> tuple[list[str], dict[str, str]]:
     failures: list[str] = []
     metadata: dict[str, str] = {}
-    missing = [relative for relative in REQUIRED_FILES if not (repo / relative).is_file()]
+    missing = [
+        relative for relative in profile.required_files
+        if not (repo / relative).is_file()
+    ]
     if missing:
         return [f"missing required file: {item}" for item in missing], metadata
 
     try:
         status_text = (repo / "STATUS.md").read_text(encoding="utf-8")
         agents_text = (repo / "AGENTS.md").read_text(encoding="utf-8")
-        authority_text = (repo / "docs/authority/AUTHORITY.md").read_text(encoding="utf-8")
-        workflow_text = (repo / ".github/workflows/project-control.yml").read_text(
-            encoding="utf-8"
-        )
+        authority_text = (
+            repo / "docs/authority/AUTHORITY.md"
+        ).read_text(encoding="utf-8")
+        workflow_text = (repo / profile.workflow_path).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return [f"required control file could not be read: {exc}"], metadata
 
@@ -187,18 +251,24 @@ def static_checks(repo: Path, repository: str) -> tuple[list[str], dict[str, str
     if template_mode not in {"true", "false"}:
         failures.append("template_mode must be true or false")
     if template_mode == "true" and repository != "armpitpete/project-template":
-        failures.append("template_mode: true is allowed only for armpitpete/project-template")
+        failures.append(
+            "template_mode: true is allowed only for armpitpete/project-template"
+        )
     if template_mode == "false":
         slug = metadata.get("project_slug", "")
         if not slug or slug == "project-template":
             failures.append("generated repository identity has not been initialized")
         if repository.split("/", 1)[-1] != slug:
-            failures.append(f"project_slug {slug!r} does not match repository {repository!r}")
+            failures.append(
+                f"project_slug {slug!r} does not match repository {repository!r}"
+            )
 
     for heading in REQUIRED_STATUS_HEADINGS:
         count = heading_count(status_text, heading)
         if count != 1:
-            failures.append(f"STATUS.md must contain exactly one ## {heading}; found {count}")
+            failures.append(
+                f"STATUS.md must contain exactly one ## {heading}; found {count}"
+            )
     for heading in REQUIRED_AUTHORITY_HEADINGS:
         count = heading_count(authority_text, heading)
         if count != 1:
@@ -220,16 +290,41 @@ def static_checks(repo: Path, repository: str) -> tuple[list[str], dict[str, str
             "exactly root STATUS.md must claim completion authority; found "
             + (", ".join(claims) if claims else "none")
         )
-    if "validate_project_control.py" not in workflow_text:
-        failures.append("project-control workflow must invoke validate_project_control.py")
+
+    if profile.exact_workflow_files is not None:
+        found_workflows = workflow_files(repo)
+        if found_workflows != profile.exact_workflow_files:
+            failures.append(
+                "workflow file set must be exactly "
+                f"{list(profile.exact_workflow_files)}; found {list(found_workflows)}"
+            )
+
+    if profile.exact_validator_command is not None:
+        command_count = workflow_text.count(profile.exact_validator_command)
+        if command_count != 1:
+            failures.append(
+                "profile workflow must invoke the exact repository validator "
+                f"command once; found {command_count}"
+            )
+    elif "validate_project_control.py" not in workflow_text:
+        failures.append(
+            "project-control workflow must invoke validate_project_control.py"
+        )
+
     return failures, metadata
 
 
-def run_repository_validator(repo: Path, repository: str) -> tuple[bool, str, list[str]]:
+def run_repository_validator(
+    repo: Path, repository: str
+) -> tuple[bool, str, list[str]]:
     before = git_status(repo)
     completed = run(
-        [sys.executable, str(repo / "scripts/validate_project_control.py"),
-         "--repository", repository],
+        [
+            sys.executable,
+            str(repo / "scripts/validate_project_control.py"),
+            "--repository",
+            repository,
+        ],
         cwd=repo,
         timeout=90,
     )
@@ -238,27 +333,41 @@ def run_repository_validator(repo: Path, repository: str) -> tuple[bool, str, li
     output = completed.stdout.strip()
     summary = output.splitlines()[-1] if output else f"exit={completed.returncode}"
     if before != after:
-        reasons.append("repository validator changed the worktree; read-only contract failed")
+        reasons.append(
+            "repository validator changed the worktree; read-only contract failed"
+        )
     if completed.returncode != 0:
         excerpt = " | ".join(output.splitlines()[-5:]) if output else "no output"
-        reasons.append(f"repository validator failed with exit {completed.returncode}: {excerpt}")
+        reasons.append(
+            f"repository validator failed with exit {completed.returncode}: {excerpt}"
+        )
         return False, summary, reasons
-    return True, summary, reasons
+    return not reasons, summary, reasons
 
 
-def classify_repository(repo: Path, *, owner: str, run_validators: bool) -> AuditResult:
-    repository, identity_notes = repository_identity(repo, owner)
-    missing = [relative for relative in REQUIRED_FILES if not (repo / relative).is_file()]
+def classify_repository(
+    repo: Path, *, owner: str, run_validators: bool
+) -> AuditResult:
+    repository, identity_notes, identity_verified = repository_identity(repo, owner)
+    profile = resolve_profile(repository, identity_verified=identity_verified)
+    missing = [
+        relative for relative in profile.required_files
+        if not (repo / relative).is_file()
+    ]
     if missing:
-        reasons = tuple(identity_notes + [f"missing required file: {item}" for item in missing])
+        reasons = tuple(
+            identity_notes + [f"missing required file: {item}" for item in missing]
+        )
         return AuditResult(
             repo.name, repo, repository, "UNMANAGED", "", True, reasons, "not run"
         )
 
-    failures, metadata = static_checks(repo, repository)
+    failures, metadata = static_checks(repo, repository, profile)
     validator_summary = "static checks only"
     if run_validators:
-        ok, validator_summary, validator_reasons = run_repository_validator(repo, repository)
+        ok, validator_summary, validator_reasons = run_repository_validator(
+            repo, repository
+        )
         if not ok:
             failures.extend(validator_reasons)
 
@@ -367,11 +476,15 @@ def main() -> int:
         for repository in find_repositories(args.root)
     ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(build_report(args.root, results), encoding="utf-8", newline="\n")
+    args.output.write_text(
+        build_report(args.root, results), encoding="utf-8", newline="\n"
+    )
     print(f"Wrote project-control audit: {args.output}")
     for classification in CLASSIFICATIONS:
         print(f"{classification}={sum(r.classification == classification for r in results)}")
-    problems = any(r.classification in {"UNMANAGED", "DRIFTED"} for r in results)
+    problems = any(
+        r.classification in {"UNMANAGED", "DRIFTED"} for r in results
+    )
     return 2 if args.fail_on_control_problems and problems else 0
 
 
