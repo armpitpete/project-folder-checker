@@ -26,17 +26,30 @@ jobs:
       - name: Test all audit classifications
         run: python scripts/test_audit_project_controls.py
 
+      - name: Test exact migration-register import
+        run: python scripts/test_build_existing_repository_migration_register.py
+
       - name: Compile Python
         run: |
           python -m py_compile scripts/validate_project_control.py
           python -m py_compile scripts/audit_project_controls.py
           python -m py_compile scripts/test_audit_project_controls.py
+          python -m py_compile scripts/build_existing_repository_migration_register.py
+          python -m py_compile scripts/run_existing_repository_migration_register_safe.py
+          python -m py_compile scripts/test_build_existing_repository_migration_register.py
+          python -m py_compile scripts/test_windows_utf8_subprocess.py
+          python -m py_compile scripts/test_windows_safe_repository_scan.py
 
   parse-powershell:
     runs-on: windows-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
       - name: Parse PowerShell tools
         shell: pwsh
@@ -46,7 +59,13 @@ jobs:
             'tools/New-OrderProject.ps1',
             'tools/Run-ProjectControlAudit.ps1',
             'tools/Prove-Central-Project-Control.ps1',
-            'tools/Install-Central-Project-Control.ps1'
+            'tools/Install-Central-Project-Control.ps1',
+            'tools/Build-ExistingRepositoryMigrationRegister.ps1',
+            'tools/Run-ExistingRepositoryMigrationBatch0.ps1',
+            'tools/Run-ExistingRepositoryMigrationBatch0Safe.ps1',
+            'tools/Run-ExistingRepositoryMigrationBatch0Resume.ps1',
+            'scripts/test_windows_batch0_native_process.ps1',
+            'scripts/test_windows_batch0_audit_table_match.ps1'
           )
           foreach ($File in $Files) {
             $Tokens = $null
@@ -62,6 +81,22 @@ jobs:
             }
             Write-Host "PASS: $File"
           }
+
+      - name: Test UTF-8 subprocess decoding on Windows
+        shell: pwsh
+        run: python scripts/test_windows_utf8_subprocess.py
+
+      - name: Test safe repository traversal on Windows
+        shell: pwsh
+        run: python scripts/test_windows_safe_repository_scan.py
+
+      - name: Test Batch 0 native process capture
+        shell: powershell
+        run: .\scripts\test_windows_batch0_native_process.ps1
+
+      - name: Test Batch 0 ASCII-only audit matching
+        shell: powershell
+        run: .\scripts\test_windows_batch0_audit_table_match.ps1
 
       - name: Test repository probes through GitHub CLI
         shell: powershell
