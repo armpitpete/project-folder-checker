@@ -5,11 +5,12 @@ project_slug: project-folder-checker
 project_name: Project Folder Checker
 project_type: system
 template_mode: false
-status: AUTHORISED
+status: REVIEW
 authority_files:
   - docs/authority/AUTHORITY.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION_REVIEW.md
+  - docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md
 ---
 
 # Project Status
@@ -20,41 +21,42 @@ authority_files:
 
 Reviewed sources:
 
-- audit SHA-256 `386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844`;
-- `ACTIVE_WORK.md` SHA-256 `19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC`.
+- source audit SHA-256 `386E0E2B79D7139D53A59491F96165469866D76F41DF842715176047CBB77844`;
+- `ACTIVE_WORK.md` SHA-256 `19B3F60DEEBC67306E2156ED9138625B24CC849B45C38B8C5D42BC37318B5FAC`;
+- Batch 0 audit SHA-256 `B382391D7BBBF14024B3BD182263D753CBC117E7C55E0E651D75B482C76B5D36`;
+- Batch 0 exception-record SHA-256 `748052AF3903A176E52B64DF5F79B9E7A71A7DAA511D1FAC6FF073AA08030698`.
 
 ## Current lane
 
-Batch 0 authority-machine reconciliation only.
+Batch 0 is complete and closed. No Batch 1 action is authorised.
 
 ## Allowed scope
 
-- fast-forward the clean local `project-folder-checker` checkout from `05ae228e79cb4d591d0e984387140d08a0cdc08d` to exact remote `main` `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`;
-- use fast-forward only;
-- record `pewdiepie-archdaemon/odysseus` as an external-upstream exception in central control records;
-- rerun the central project-control audit;
-- record exact Batch 0 proof;
-- add and validate the fail-closed authority-machine runner for those actions.
+- preserve the exact Batch 0 result and proof hashes;
+- validate this migration-lane branch after proof import;
+- state the next separately bounded Batch 1 review gate;
+- maintain the prohibition on target-repository changes until separate authority.
 
 ## Forbidden changes
 
-- no target-repository change except the authorised `project-folder-checker` fast-forward;
+- no Batch 1 review, refresh, creation, promotion or merge without separate explicit authority;
+- no target-repository change;
 - no modification, fork, migration, branch, pull request, push, archive, rename or deletion for `pewdiepie-archdaemon/odysseus`;
-- no review, refresh, creation or promotion of any other target control pull request;
 - no repository removal or relocation;
-- no deletion of the disposable proof repository.
+- no deletion of the disposable proof repository;
+- no merge of PR #12 without separate exact-head and merge-method authority.
 
 ## Validation
 
-- local `project-folder-checker` must begin clean on branch `main` at the authorised old or resumable new head;
-- `origin/main` must equal the authorised new head exactly;
-- the update must be a fast-forward;
-- final local head must equal the authorised new head and remain clean;
-- every other local repository HEAD must remain unchanged;
-- the external-upstream exception record must be written centrally;
-- the rerun audit must classify `armpitpete/project-folder-checker` as `CONTROLLED`;
-- the raw ownership-neutral audit may retain `pewdiepie-archdaemon/odysseus` as structurally `UNMANAGED`, while the exception record excludes it from the owned migration queue;
-- final Batch 0 result must record `OTHER_REPOSITORY_HEADS_CHANGED=0`.
+- local `project-folder-checker/main` is clean at `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`;
+- the old-to-new relationship is verified as a fast-forward;
+- the external-upstream exception record exists at the recorded SHA-256;
+- the central audit exists at the recorded SHA-256;
+- audit totals are `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`;
+- `armpitpete/project-folder-checker` is `CONTROLLED`;
+- `pewdiepie-archdaemon/odysseus` remains structurally `UNMANAGED` but is excluded from the owned migration queue;
+- zero repository HEADs changed during the resume completion invocation;
+- no additional target-repository action occurred.
 
 ## Done
 
@@ -63,21 +65,23 @@ Batch 0 authority-machine reconciliation only.
 - Full 19-record register produced and reviewed.
 - Eight existing control pull requests identified: five mergeable and three conflicted.
 - Batch 0 explicitly authorised by the owner.
-- Fail-closed, resumable Batch 0 authority-machine runner added.
-- Windows PowerShell parser validation added for the Batch 0 runner.
+- Clean local `project-folder-checker/main` fast-forwarded from `05ae228e79cb4d591d0e984387140d08a0cdc08d` to `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`.
+- `pewdiepie-archdaemon/odysseus` recorded as an external-upstream exception without repository modification.
+- Central audit rerun with `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`.
+- Batch 0 result preserved at `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md`.
+- Batch 0 closed with `other_repository_heads_changed: 0`.
 
 ## To do
 
-- run the guarded Batch 0 command on the Windows authority machine;
-- preserve `PROJECT_CONTROL_EXCEPTIONS.md`;
-- preserve the rerun `PROJECT_CONTROL_AUDIT.md`;
-- preserve `EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md`;
-- stop before Batch 1 or any other target-repository change.
+- obtain separate explicit authority before beginning Batch 1;
+- reverify each Batch 1 pull request's current exact head, base, mergeability, diff and CI;
+- inspect and report only under the Batch 1 review gate;
+- stop before any control-PR update or promotion unless separately authorised.
 
 ## Next bounded gate
 
-Run `tools/Run-ExistingRepositoryMigrationBatch0.ps1` on the authority machine and return the complete terminal output.
+Authorise Batch 1 review only for the five existing mergeable control pull requests. Reverify every exact head and base, inspect complete control-only diffs and CI, and prepare one promotion or repair contract per repository. Do not update or merge any target pull request.
 
 ## Stop point
 
-Stop immediately after Batch 0 proof. No other target-repository change is authorised.
+Batch 0 is complete. Stop before Batch 1 or any other target-repository action.
