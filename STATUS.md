@@ -11,6 +11,7 @@ authority_files:
   - docs/authority/EXISTING_REPOSITORY_MIGRATION.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION_REVIEW.md
   - docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md
+  - docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_1_REVIEW.md
 ---
 
 # Project Status
@@ -28,19 +29,21 @@ Reviewed sources:
 
 ## Current lane
 
-Batch 0 is complete and closed. No Batch 1 action is authorised.
+Batch 1 review is complete and closed. Five independent repair contracts are prepared; no target repair is authorised.
 
 ## Allowed scope
 
-- preserve the exact Batch 0 result and proof hashes;
-- validate this migration-lane branch after proof import;
-- state the next separately bounded Batch 1 review gate;
-- maintain the prohibition on target-repository changes until separate authority.
+- preserve the Batch 0 result and proof hashes;
+- preserve the exact Batch 1 metadata, diffs, CI evidence and repair contracts;
+- validate this migration-lane branch;
+- state the next separately bounded repository-specific repair gate;
+- maintain the prohibition on target changes until separate authority.
 
 ## Forbidden changes
 
-- no Batch 1 review, refresh, creation, promotion or merge without separate explicit authority;
-- no target-repository change;
+- no update, refresh, ready transition, closure or merge of any Batch 1 target pull request;
+- no target-repository file, branch, workflow or pull-request change;
+- no Batch 2 or later migration work;
 - no modification, fork, migration, branch, pull request, push, archive, rename or deletion for `pewdiepie-archdaemon/odysseus`;
 - no repository removal or relocation;
 - no deletion of the disposable proof repository;
@@ -48,40 +51,42 @@ Batch 0 is complete and closed. No Batch 1 action is authorised.
 
 ## Validation
 
-- local `project-folder-checker/main` is clean at `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`;
-- the old-to-new relationship is verified as a fast-forward;
-- the external-upstream exception record exists at the recorded SHA-256;
-- the central audit exists at the recorded SHA-256;
-- audit totals are `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`;
-- `armpitpete/project-folder-checker` is `CONTROLLED`;
-- `pewdiepie-archdaemon/odysseus` remains structurally `UNMANAGED` but is excluded from the owned migration queue;
-- zero repository HEADs changed during the resume completion invocation;
-- no additional target-repository action occurred.
+- every Batch 1 PR was reverified open, draft, unmerged and mergeable at its recorded exact head;
+- every reported base and head comparison is strictly ahead with zero commits behind;
+- complete patches show control-only changes and no product, manuscript, hardware, collector or application leakage;
+- exact-head GitHub Actions passed for all five PRs;
+- all five PRs fail the current central migration completeness test because one or more mandatory central-audit files or structures are absent;
+- one repository-specific repair contract is recorded for each target;
+- target pull requests changed during Batch 1 review: zero.
 
 ## Done
 
 - Central future-project enforcement merged and proven.
 - Read-only importer completed from the exact source hashes.
 - Full 19-record register produced and reviewed.
-- Eight existing control pull requests identified: five mergeable and three conflicted.
-- Batch 0 explicitly authorised by the owner.
-- Clean local `project-folder-checker/main` fast-forwarded from `05ae228e79cb4d591d0e984387140d08a0cdc08d` to `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`.
-- `pewdiepie-archdaemon/odysseus` recorded as an external-upstream exception without repository modification.
+- Batch 0 completed: local `project-folder-checker/main` synchronised and Odysseus excluded as an external upstream.
 - Central audit rerun with `CONTROLLED=1`, `BOOTSTRAP=1`, `DRIFTED=0`, `UNMANAGED=18`, `BLOCKED=0`.
-- Batch 0 result preserved at `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_0_RESULT.md`.
-- Batch 0 closed with `other_repository_heads_changed: 0`.
+- Batch 1 reviewed `commentate-this` PR #3 at `a3d8c1c1cfef46d3422f32b2d0fead9b8deb5e5a`.
+- Batch 1 reviewed `canon-garden` PR #202 at `dba89b9df57828c84c89d57e8d38261fe5ca6027`.
+- Batch 1 reviewed `lirava` PR #82 at `019031b61edac5affacaa34d8f71b8c48189c262`.
+- Batch 1 reviewed `merrin-voice-01` PR #50 at `9982abf4112f220a74356ca615feacdcdca77937`.
+- Batch 1 reviewed `story-evidence-collector` PR #146 at `6b9bba1b3a85da360b338a93547f29a68259792f`.
+- Every Batch 1 disposition is `REPAIR REQUIRED`; none is promotion-ready.
+- Five exact repair contracts preserved at `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_1_REVIEW.md`.
 
 ## To do
 
-- obtain separate explicit authority before beginning Batch 1;
-- reverify each Batch 1 pull request's current exact head, base, mergeability, diff and CI;
-- inspect and report only under the Batch 1 review gate;
-- stop before any control-PR update or promotion unless separately authorised.
+- obtain separate explicit authority for exactly one repository-specific repair contract;
+- reverify the selected target PR has not moved before any repair;
+- apply only the selected contract's exact allowed-file scope;
+- rerun repository-specific control and existing product CI;
+- return a new exact head for independent review;
+- stop before promotion unless separately authorised.
 
 ## Next bounded gate
 
-Authorise Batch 1 review only for the five existing mergeable control pull requests. Reverify every exact head and base, inspect complete control-only diffs and CI, and prepare one promotion or repair contract per repository. Do not update or merge any target pull request.
+Select and explicitly authorise exactly one of `B1-CT`, `B1-CG`, `B1-LI`, `B1-MV` or `B1-SEC` from `docs/authority/EXISTING_REPOSITORY_MIGRATION_BATCH_1_REVIEW.md`. Reverify the selected existing PR head before applying its repair. No other target may change.
 
 ## Stop point
 
-Batch 0 is complete. Stop before Batch 1 or any other target-repository action.
+Batch 1 review is complete. Stop before any target pull-request update, repair, ready transition or merge.
