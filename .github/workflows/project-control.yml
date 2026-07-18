@@ -61,7 +61,9 @@ jobs:
             'tools/Prove-Central-Project-Control.ps1',
             'tools/Install-Central-Project-Control.ps1',
             'tools/Build-ExistingRepositoryMigrationRegister.ps1',
-            'tools/Run-ExistingRepositoryMigrationBatch0.ps1'
+            'tools/Run-ExistingRepositoryMigrationBatch0.ps1',
+            'tools/Run-ExistingRepositoryMigrationBatch0Safe.ps1',
+            'scripts/test_windows_batch0_native_process.ps1'
           )
           foreach ($File in $Files) {
             $Tokens = $null
@@ -85,6 +87,10 @@ jobs:
       - name: Test safe repository traversal on Windows
         shell: pwsh
         run: python scripts/test_windows_safe_repository_scan.py
+
+      - name: Test Batch 0 native process capture
+        shell: powershell
+        run: .\scripts\test_windows_batch0_native_process.ps1
 
       - name: Test repository probes through GitHub CLI
         shell: powershell
