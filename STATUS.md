@@ -14,57 +14,61 @@ authority_files:
 
 ## Current authority
 
-`main` at exact commit `05ae228e79cb4d591d0e984387140d08a0cdc08d`.
+`main` at exact commit `25cab54a0dea61d9a5e36041c2d6577fb8f2e614`.
+
+Shared repository-control contracts are governed by `armpitpete/merrin-project-controls` Foundation v0.1 at exact commit `b784573ad86d8d54ba1108dc1bf952260ee4c6bb`.
 
 ## Current lane
 
-Central future-project enforcement and all-repository control auditing.
+Maintain the local Windows project creator, folder inspection and read-only repository-control audit tooling.
+
+Project Folder Checker is not the authority for shared cross-repository contracts and must not bulk-migrate other repositories from stale project lanes.
 
 ## Allowed scope
 
-- mandatory repository entry and completion authority;
-- central project-creation PowerShell tooling;
-- read-only project-control auditing;
-- control classifications and Markdown reporting;
-- tests, CI and documentation for this lane.
+- local project and folder inspection;
+- local project-creation PowerShell tooling;
+- read-only repository-control auditing;
+- reporting structural drift against explicitly selected shared contracts;
+- tests, CI and documentation for these local tools.
 
 ## Forbidden changes
 
+- defining competing shared-control contracts;
+- automatically editing another repository;
+- bulk-merging or repairing repository-control pull requests;
 - deleting, moving, renaming or editing scanned project content;
-- automatic repair of another repository;
-- deleting the disposable proof repository;
-- weakening the mandatory template route;
-- creating a second completion authority;
-- unrelated desktop-app redesign.
+- storing private repository inventories in public output;
+- creating a second completion authority.
 
 ## Validation
 
 - project-control validator passes;
-- audit classification tests pass for all five states;
+- audit classification tests pass;
 - PowerShell scripts parse successfully;
-- generated-project fixture initialises and validates;
-- repository diff contains only authorised control, audit and documentation files.
+- generated-project fixtures initialise and validate;
+- public output contains no private repository inventory or local control-plane record.
 
 ## Done
 
 - Existing report-only folder inspection application preserved.
-- Central enforcement architecture selected.
-- Exact classification contract defined.
+- Central local project creator and read-only audit tooling implemented and merged.
+- One disposable proof repository created and exercised.
+- Sensitive repository inventory and migration work moved behind private visibility.
+- The stale existing-repository migration PR was closed without merge.
+- Canonical shared-control authority assigned to `merrin-project-controls`.
 
 ## To do
 
-- Implement and validate the central project creator.
-- Implement and validate all-repository auditing.
-- Install central scripts into MainVault.
-- Create and validate one disposable repository from the mandatory template.
-- Stop before deletion of the disposable repository.
+- align local template installation with versioned contracts from `merrin-project-controls`;
+- remove or clearly supersede obsolete cross-repository migration documentation;
+- mark the disposable proof as completed before archival;
+- retain only generic, privacy-safe audit output.
 
 ## Next bounded gate
 
-Implement the authorised central bootstrap and audit tooling, publish it for review,
-then run one disposable proof repository through the complete workflow.
+Integrate one version-pinned shared control from `merrin-project-controls` into the local project-creation path and prove that the generated fixture remains deterministic and privacy-safe.
 
 ## Stop point
 
-Stop before deleting the disposable proof repository or merging this implementation
-without exact-head authority.
+Stop before any cross-repository write, bulk migration, proof-repository deletion or shared-contract modification without a separately reviewed exact-head change.
