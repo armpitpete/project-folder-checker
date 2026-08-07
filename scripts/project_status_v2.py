@@ -18,6 +18,26 @@ STAGES = (
     "live-behaviour",
     "human-acceptance",
 )
+STATUS_TO_STAGE = {
+    "designed": "designed",
+    "implemented": "implemented",
+    "automated-checks-passed": "automated-checks",
+    "independently-reviewed": "independent-review",
+    "merged": "merged",
+    "deployed": "deployed",
+    "live-behaviour-verified": "live-behaviour",
+    "human-acceptance-received": "human-acceptance",
+}
+REQUIRED_ENVIRONMENTS = {
+    "designed": "accepted project authority",
+    "implemented": "exact implementation commit",
+    "automated-checks": "exact-head automated checks",
+    "independent-review": "exact-head independent review",
+    "merged": "default-branch commit",
+    "deployed": "declared deployment environment",
+    "live-behaviour": "actual live environment",
+    "human-acceptance": "declared human acceptance environment",
+}
 FORBIDDEN_FRAGMENTS = ("I:\\", "C:\\", "GH_TOKEN", "GITHUB_TOKEN", "sk-", "private inventory")
 
 
@@ -26,28 +46,18 @@ class StatusError(ValueError):
 
 
 def initial_record(repository: str, project_name: str) -> dict[str, Any]:
-    stages: list[dict[str, Any]] = []
-    for stage in STAGES:
-        if stage == "designed":
-            stages.append({
-                "stage": stage,
-                "required": True,
-                "required_environment": "accepted project authority",
-                "result": "INSUFFICIENT",
-                "relationship": "missing",
-                "evidence": [],
-                "limitations": ["No accepted project-specific authority evidence has been recorded yet."],
-            })
-        else:
-            stages.append({
-                "stage": stage,
-                "required": False,
-                "rationale": "This initial bootstrap record makes no claim for this later lifecycle stage.",
-                "result": "NOT_APPLICABLE",
-                "relationship": "not-applicable",
-                "evidence": [],
-                "limitations": [],
-            })
+    stages = [
+        {
+            "stage": stage,
+            "required": True,
+            "required_environment": REQUIRED_ENVIRONMENTS[stage],
+            "result": "INSUFFICIENT",
+            "relationship": "missing",
+            "evidence": [],
+            "limitations": [f"No direct {stage} evidence has been recorded yet."],
+        }
+        for stage in STAGES
+    ]
     return {
         "project": repository,
         "finish_line": f"Define and evidence the first bounded finish line for {project_name}.",
@@ -67,41 +77,71 @@ def initial_record(repository: str, project_name: str) -> dict[str, Any]:
             "claimed": "designed",
             "verified": "insufficient",
             "authority": AUTHORITY,
-            "limitations": ["Generated bootstrap fixture; not deployment, live-behaviour or acceptance evidence."],
+            "limitations": ["Generated bootstrap fixture; not implementation, deployment, live-behaviour or acceptance evidence."],
             "stages": stages,
         },
         "next_bounded_action": "Assess and inventory source material without modifying it, then accept one bounded project authority.",
     }
 
 
+def _expected_verified(claimed: str, stages: dict[str, dict[str, Any]]) -> str:
+    relevant = list(STAGES) if claimed == "complete" else list(STAGES[: STAGES.index(STATUS_TO_STAGE[claimed]) + 1])
+    if any(stages[name]["result"] == "FAIL" for name in relevant):
+        return "failed"
+    if all(
+        stages[name]["result"] == "PASS"
+        and stages[name]["relationship"] == "direct"
+        and stages[name].get("observed_environment") == stages[name].get("required_environment")
+        for name in relevant
+    ):
+        return "complete" if claimed == "complete" else claimed
+    return "insufficient"
+
+
 def validate(record: Any) -> None:
     if not isinstance(record, dict):
         raise StatusError("project status must be an object")
-    required = {"project", "finish_line", "percentage_complete", "completion_likelihood", "lifecycle_status", "next_bounded_action"}
-    missing = sorted(required - set(record))
+    required_fields = {"project", "finish_line", "percentage_complete", "completion_likelihood", "lifecycle_status", "next_bounded_action"}
+    missing = sorted(required_fields - set(record))
     if missing:
         raise StatusError("missing fields: " + ", ".join(missing))
+
     status = record["lifecycle_status"]
     if status.get("authority") != AUTHORITY:
         raise StatusError("project status authority is not the pinned shared control")
-    stages = status.get("stages")
-    if not isinstance(stages, list) or [item.get("stage") for item in stages] != list(STAGES):
+    claimed = status.get("claimed")
+    if claimed not in set(STATUS_TO_STAGE) | {"complete"}:
+        raise StatusError("unsupported lifecycle claim")
+    raw_stages = status.get("stages")
+    if not isinstance(raw_stages, list) or [item.get("stage") for item in raw_stages] != list(STAGES):
         raise StatusError("all eight lifecycle stages must appear once in canonical order")
-    for item in stages:
-        if item.get("required"):
-            if item.get("result") in {"PASS", "FAIL"}:
-                if item.get("relationship") != "direct" or not item.get("evidence"):
-                    raise StatusError(f"{item['stage']} PASS/FAIL requires direct evidence")
-                if item.get("observed_environment") != item.get("required_environment"):
-                    raise StatusError(f"{item['stage']} environment mismatch")
-            elif item.get("result") != "INSUFFICIENT":
-                raise StatusError(f"{item['stage']} required result is invalid")
+
+    stages: dict[str, dict[str, Any]] = {}
+    for item in raw_stages:
+        name = item["stage"]
+        if item.get("required") is not True:
+            raise StatusError(f"bootstrap lifecycle stage {name} must remain required")
+        if item.get("required_environment") != REQUIRED_ENVIRONMENTS[name]:
+            raise StatusError(f"{name} required environment does not match the pinned bootstrap contract")
+        result = item.get("result")
+        relationship = item.get("relationship")
+        evidence = item.get("evidence", [])
+        if result in {"PASS", "FAIL"}:
+            if relationship != "direct" or not evidence:
+                raise StatusError(f"{name} PASS/FAIL requires direct evidence")
+            if item.get("observed_environment") != item.get("required_environment"):
+                raise StatusError(f"{name} environment mismatch")
+        elif result == "INSUFFICIENT":
+            if relationship not in {"direct", "proxy", "missing"}:
+                raise StatusError(f"{name} INSUFFICIENT relationship is invalid")
         else:
-            if item.get("result") != "NOT_APPLICABLE" or item.get("relationship") != "not-applicable" or not item.get("rationale"):
-                raise StatusError(f"{item['stage']} not-applicable state is invalid")
-    if status.get("verified") == "complete":
-        if not all((not item["required"]) or (item["result"] == "PASS" and item["relationship"] == "direct") for item in stages):
-            raise StatusError("complete requires direct PASS evidence for every required stage")
+            raise StatusError(f"{name} required result is invalid")
+        stages[name] = item
+
+    expected = _expected_verified(claimed, stages)
+    if status.get("verified") != expected:
+        raise StatusError(f"lifecycle_status.verified must be {expected!r}")
+
     text = json.dumps(record, sort_keys=True)
     for fragment in FORBIDDEN_FRAGMENTS:
         if fragment.lower() in text.lower():
