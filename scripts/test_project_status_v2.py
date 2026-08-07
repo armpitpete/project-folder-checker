@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from project_status_v2 import AUTHORITY, StatusError, initial_record, validate, write_record
+from project_status_v2 import AUTHORITY, STAGES, StatusError, initial_record, validate, write_record
 
 
 class ProjectStatusV2Tests(unittest.TestCase):
@@ -19,13 +19,39 @@ class ProjectStatusV2Tests(unittest.TestCase):
         self.assertEqual(0, self.record["percentage_complete"]["estimate"])
         self.assertEqual("insufficient", self.record["lifecycle_status"]["verified"])
         self.assertEqual(AUTHORITY, self.record["lifecycle_status"]["authority"])
-        self.assertFalse(any(stage["result"] == "PASS" for stage in self.record["lifecycle_status"]["stages"]))
+        stages = self.record["lifecycle_status"]["stages"]
+        self.assertTrue(all(stage["required"] for stage in stages))
+        self.assertEqual(list(STAGES), [stage["stage"] for stage in stages])
+        self.assertFalse(any(stage["result"] == "PASS" for stage in stages))
 
     def test_percentage_cannot_create_completion(self) -> None:
         record = copy.deepcopy(self.record)
         record["percentage_complete"]["estimate"] = 100
         record["lifecycle_status"]["verified"] = "complete"
-        with self.assertRaisesRegex(StatusError, "complete requires direct PASS"):
+        with self.assertRaisesRegex(StatusError, "verified must be 'insufficient'"):
+            validate(record)
+
+    def test_later_stages_cannot_be_marked_not_applicable_to_create_completion(self) -> None:
+        record = copy.deepcopy(self.record)
+        for stage in record["lifecycle_status"]["stages"]:
+            if stage["stage"] == "designed":
+                stage.update(
+                    result="PASS",
+                    relationship="direct",
+                    evidence=["issue:1"],
+                    observed_environment=stage["required_environment"],
+                )
+            else:
+                stage.update(
+                    required=False,
+                    rationale="Claim stops early.",
+                    result="NOT_APPLICABLE",
+                    relationship="not-applicable",
+                    evidence=[],
+                )
+                stage.pop("required_environment", None)
+        record["lifecycle_status"].update(claimed="complete", verified="complete")
+        with self.assertRaisesRegex(StatusError, "must remain required"):
             validate(record)
 
     def test_proxy_pass_is_rejected(self) -> None:
@@ -40,6 +66,12 @@ class ProjectStatusV2Tests(unittest.TestCase):
         stage = record["lifecycle_status"]["stages"][0]
         stage.update(result="PASS", relationship="direct", evidence=["issue:1"], observed_environment="fixture")
         with self.assertRaisesRegex(StatusError, "environment mismatch"):
+            validate(record)
+
+    def test_unearned_intermediate_verified_state_is_rejected(self) -> None:
+        record = copy.deepcopy(self.record)
+        record["lifecycle_status"].update(claimed="merged", verified="merged")
+        with self.assertRaisesRegex(StatusError, "verified must be 'insufficient'"):
             validate(record)
 
     def test_output_is_deterministic(self) -> None:
