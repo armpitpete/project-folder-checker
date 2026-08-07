@@ -26,11 +26,28 @@ jobs:
       - name: Test all audit classifications
         run: python scripts/test_audit_project_controls.py
 
+      - name: Test evidence-bound Project Status v2 consumer
+        working-directory: scripts
+        run: python -m unittest -v test_project_status_v2.py
+
+      - name: Prove deterministic privacy-safe status generation
+        run: |
+          python scripts/project_status_v2.py --repository owner/example --project-name Example --output /tmp/status-one.json
+          python scripts/project_status_v2.py --repository owner/example --project-name Example --output /tmp/status-two.json
+          cmp /tmp/status-one.json /tmp/status-two.json
+          python scripts/project_status_v2.py --repository owner/example --project-name Example --output /tmp/status-one.json --validate-only
+          if grep -Eqi '([A-Z]:\\|GH_TOKEN|GITHUB_TOKEN|sk-|private inventory)' /tmp/status-one.json; then
+            echo 'Generated status contains private control-plane material.' >&2
+            exit 1
+          fi
+
       - name: Compile Python
         run: |
           python -m py_compile scripts/validate_project_control.py
           python -m py_compile scripts/audit_project_controls.py
           python -m py_compile scripts/test_audit_project_controls.py
+          python -m py_compile scripts/project_status_v2.py
+          python -m py_compile scripts/test_project_status_v2.py
 
   parse-powershell:
     runs-on: windows-latest
@@ -44,6 +61,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $Files = @(
             'tools/New-OrderProject.ps1',
+            'tools/New-ControlledOrderProject.ps1',
             'tools/Run-ProjectControlAudit.ps1',
             'tools/Prove-Central-Project-Control.ps1',
             'tools/Install-Central-Project-Control.ps1'
