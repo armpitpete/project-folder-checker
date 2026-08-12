@@ -2,11 +2,17 @@ name: Project control
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: project-control-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate-project-control:
