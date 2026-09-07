@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate-project-control:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
           python -m py_compile scripts/test_project_status_v2.py
 
   parse-powershell:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
