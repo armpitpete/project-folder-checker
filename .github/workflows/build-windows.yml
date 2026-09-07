@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows]
 
     steps:
       - name: Check out repository
